@@ -1,0 +1,32 @@
+{
+  "name": "rps-onchain",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build:program": "anchor build",
+    "test:program": "anchor test --skip-local-validator",
+    "deploy:devnet": "anchor deploy --provider.cluster devnet",
+    "dev": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build"
+  },
+  "devDependencies": {
+    "@coral-xyz/anchor": "^0.30.1",
+    "@solana/spl-token": "^0.4.9",
+    "@solana/web3.js": "^1.98.0",
+    "@types/bn.js": "^5.1.6",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.0",
+    "anchor-bankrun": "^0.5.0",
+    "chai": "^4.5.0",
+    "mocha": "^10.8.2",
+    "solana-bankrun": "^0.4.0",
+    "ts-mocha": "^10.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "pnpm@9.12.3"
+}

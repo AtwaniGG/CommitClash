@@ -1,0 +1,450 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   CYBERPUNK PIXEL ART — base layer
+   ========================================================= */
+
+:root {
+  --bg-base: #0a0e1a;
+  --bg-alt: #131826;
+  --bg-elev: #1a1f2e;
+  --magenta: #ff2bd6;
+  --cyan: #00f5d4;
+  --acid: #fffb00;
+  --burn: #ff003c;
+  --ok: #00ff88;
+  --edge: #2a3349;
+  --edge-bright: #4a5379;
+  --ink: #e0e0ff;
+  --ink-dim: #a0a4c0;
+
+  /* Solana wallet-adapter overrides */
+  --wallet-adapter-button-background-color: var(--bg-elev);
+  --wallet-adapter-button-background-hover-color: var(--magenta);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: var(--bg-base);
+  color: var(--ink);
+  font-family: var(--font-body), monospace;
+  font-size: 18px;
+  line-height: 1.45;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeSpeed;
+  margin: 0;
+  padding: 0;
+  cursor: crosshair;
+}
+
+body {
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 20% 0%, #ff2bd610 0%, transparent 40%),
+    radial-gradient(circle at 80% 100%, #00f5d410 0%, transparent 40%),
+    linear-gradient(to bottom, #05070d 0%, #0a0e1a 100%);
+  background-attachment: fixed;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Pixel-grid overlay — barely visible, gives the whole UI a graph-paper substrate */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, #2a33491a 1px, transparent 1px),
+    linear-gradient(to bottom, #2a33491a 1px, transparent 1px);
+  background-size: 8px 8px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Scanline overlay — slow drift over the entire viewport */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    #00000020 2px,
+    #00000020 3px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: multiply;
+}
+
+/* Selection */
+::selection {
+  background: var(--magenta);
+  color: var(--bg-base);
+  text-shadow: none;
+}
+
+/* Scrollbar — chunky pixel rail */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-alt);
+  border-left: 1px solid var(--edge);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--edge-bright);
+  border: 2px solid var(--bg-alt);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--magenta);
+}
+
+/* Disable smoothing on canvases & images we mark as pixel */
+img.pixelated,
+svg.pixelated,
+.pixelated img,
+.pixelated svg,
+canvas.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* =========================================================
+   COMPONENT LAYER
+   ========================================================= */
+
+@layer components {
+  /* Pixel-corner frame — sharp 8-bit window chrome.
+     Use on cards, panels, dialogs. */
+  .pixel-frame {
+    position: relative;
+    background: var(--bg-elev);
+    border: 1px solid var(--edge-bright);
+    clip-path: polygon(
+      0 4px,
+      4px 4px,
+      4px 0,
+      calc(100% - 4px) 0,
+      calc(100% - 4px) 4px,
+      100% 4px,
+      100% calc(100% - 4px),
+      calc(100% - 4px) calc(100% - 4px),
+      calc(100% - 4px) 100%,
+      4px 100%,
+      4px calc(100% - 4px),
+      0 calc(100% - 4px)
+    );
+  }
+
+  /* Title bar across the top of a frame — like a ROM hacker's window header */
+  .pixel-titlebar {
+    background: linear-gradient(
+      to right,
+      var(--magenta) 0%,
+      var(--magenta) 50%,
+      var(--cyan) 100%
+    );
+    color: var(--bg-deep, #05070d);
+    font-family: var(--font-display), monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--edge-bright);
+  }
+
+  /* Pixel button — chunky, sharp, glows on hover */
+  .pixel-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--font-display), monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 12px 18px;
+    background: var(--bg-elev);
+    color: var(--ink);
+    border: 1px solid var(--edge-bright);
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.06s ease, color 0.12s ease,
+      background 0.12s ease, box-shadow 0.18s ease;
+    user-select: none;
+    clip-path: polygon(
+      0 3px,
+      3px 3px,
+      3px 0,
+      calc(100% - 3px) 0,
+      calc(100% - 3px) 3px,
+      100% 3px,
+      100% calc(100% - 3px),
+      calc(100% - 3px) calc(100% - 3px),
+      calc(100% - 3px) 100%,
+      3px 100%,
+      3px calc(100% - 3px),
+      0 calc(100% - 3px)
+    );
+  }
+  .pixel-btn:hover:not(:disabled) {
+    background: var(--bg-base);
+    color: var(--cyan);
+    box-shadow:
+      0 0 0 1px var(--cyan),
+      0 0 12px #00f5d480,
+      0 0 32px #00f5d440;
+    transform: translateY(-1px);
+  }
+  .pixel-btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .pixel-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .pixel-btn--magenta {
+    background: var(--magenta);
+    color: var(--bg-base);
+    border-color: var(--magenta);
+  }
+  .pixel-btn--magenta:hover:not(:disabled) {
+    background: var(--bg-base);
+    color: var(--magenta);
+    box-shadow:
+      0 0 0 1px var(--magenta),
+      0 0 16px #ff2bd680,
+      0 0 40px #ff2bd640;
+  }
+  .pixel-btn--acid {
+    background: var(--acid);
+    color: var(--bg-base);
+    border-color: var(--acid);
+  }
+  .pixel-btn--acid:hover:not(:disabled) {
+    background: var(--bg-base);
+    color: var(--acid);
+    box-shadow:
+      0 0 0 1px var(--acid),
+      0 0 16px #fffb0080,
+      0 0 40px #fffb0040;
+  }
+  .pixel-btn--burn {
+    background: var(--burn);
+    color: var(--ink);
+    border-color: var(--burn);
+  }
+
+  /* Pixel input — terminal-like text field */
+  .pixel-input {
+    font-family: var(--font-mono), monospace;
+    font-size: 14px;
+    background: var(--bg-base);
+    color: var(--cyan);
+    border: 1px solid var(--edge);
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.12s ease, box-shadow 0.18s ease;
+    caret-color: var(--cyan);
+  }
+  .pixel-input:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 1px var(--cyan), 0 0 12px #00f5d440;
+  }
+
+  /* Stat tile — for the dashboard. Big number, label on top. */
+  .stat-tile {
+    background: var(--bg-elev);
+    border: 1px solid var(--edge);
+    padding: 16px 18px;
+    position: relative;
+  }
+  .stat-tile__label {
+    font-family: var(--font-display), monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+    margin-bottom: 8px;
+  }
+  .stat-tile__value {
+    font-family: var(--font-mono), monospace;
+    font-size: 32px;
+    line-height: 1;
+    color: var(--ink);
+  }
+
+  /* Marquee row — endless scroll for live game feed */
+  .marquee {
+    display: flex;
+    overflow: hidden;
+    white-space: nowrap;
+    border-top: 1px solid var(--edge);
+    border-bottom: 1px solid var(--edge);
+    background: var(--bg-deep, #05070d);
+  }
+  .marquee__track {
+    display: inline-flex;
+    gap: 32px;
+    padding: 8px 0;
+    animation: marquee 40s linear infinite;
+  }
+
+  /* Status dot — pulsing live indicator */
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--ok);
+    box-shadow: 0 0 8px var(--ok);
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+  .status-dot--idle {
+    background: var(--ink-dim);
+    box-shadow: none;
+    animation: none;
+  }
+  .status-dot--burn {
+    background: var(--burn);
+    box-shadow: 0 0 8px var(--burn);
+  }
+
+  /* Glow text utilities */
+  .glow-magenta {
+    color: var(--magenta);
+    text-shadow: 0 0 8px #ff2bd680, 0 0 24px #ff2bd640;
+  }
+  .glow-cyan {
+    color: var(--cyan);
+    text-shadow: 0 0 8px #00f5d480, 0 0 24px #00f5d440;
+  }
+  .glow-acid {
+    color: var(--acid);
+    text-shadow: 0 0 8px #fffb0080, 0 0 24px #fffb0040;
+  }
+  .glow-burn {
+    color: var(--burn);
+    text-shadow: 0 0 8px #ff003c80, 0 0 24px #ff003c40;
+  }
+  .glow-ok {
+    color: var(--ok);
+    text-shadow: 0 0 8px #00ff8880, 0 0 24px #00ff8840;
+  }
+
+  /* Glitch text — apply to short pieces of display text */
+  .glitch {
+    position: relative;
+    display: inline-block;
+  }
+  .glitch::before,
+  .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .glitch::before {
+    color: var(--magenta);
+    transform: translate(-1px, 0);
+    mix-blend-mode: screen;
+    clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+  }
+  .glitch::after {
+    color: var(--cyan);
+    transform: translate(1px, 0);
+    mix-blend-mode: screen;
+    clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+  }
+
+  /* Terminal-style block cursor */
+  .term-cursor::after {
+    content: "▮";
+    color: var(--cyan);
+    margin-left: 4px;
+    animation: blink 1.1s steps(2) infinite;
+  }
+
+  /* Wallet adapter button overrides — keep our aesthetic */
+  .wallet-adapter-button-trigger {
+    font-family: var(--font-display), monospace !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.06em !important;
+    background: var(--magenta) !important;
+    color: var(--bg-base) !important;
+    border-radius: 0 !important;
+    height: auto !important;
+    padding: 12px 18px !important;
+    line-height: 1 !important;
+    transition: all 0.18s ease !important;
+  }
+  .wallet-adapter-button-trigger:hover {
+    background: var(--bg-base) !important;
+    color: var(--magenta) !important;
+    box-shadow:
+      0 0 0 1px var(--magenta),
+      0 0 16px #ff2bd680,
+      0 0 40px #ff2bd640 !important;
+  }
+  .wallet-adapter-modal-wrapper {
+    background: var(--bg-elev) !important;
+    border: 1px solid var(--magenta) !important;
+    border-radius: 0 !important;
+  }
+  .wallet-adapter-modal-title {
+    font-family: var(--font-display), monospace !important;
+    color: var(--ink) !important;
+  }
+}
+
+@layer utilities {
+  .text-pixel-xs {
+    font-family: var(--font-display), monospace;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+  }
+  .text-pixel-sm {
+    font-family: var(--font-display), monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .text-pixel-md {
+    font-family: var(--font-display), monospace;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .text-pixel-lg {
+    font-family: var(--font-display), monospace;
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .text-pixel-xl {
+    font-family: var(--font-display), monospace;
+    font-size: 36px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+}
