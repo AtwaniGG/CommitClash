@@ -22,12 +22,9 @@ out/
 .idea/
 .vscode/
 
-# Solana keypairs (NEVER commit)
-*.json
-!package.json
-!tsconfig.json
-!Anchor.toml.json
-!.eslintrc.json
+# Solana keypairs (NEVER commit) — only keypair files in target/deploy/ and the wallet
+target/deploy/*-keypair.json
+*-keypair.json
 test-ledger/
 
 # Logs
