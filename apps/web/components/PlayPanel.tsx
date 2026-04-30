@@ -181,14 +181,16 @@ export function PlayPanel({
       });
 
       // 4. Poll match for both reveals → resolved state
-      const otherMove = await pollMatchUntilResolved(
+      const otherMoveByte = await pollMatchUntilResolved(
         connection,
         poolId,
         matchInfo.matchId,
         matchInfo.imSideA
       );
-      if (otherMove === null) throw new Error("Opponent timeout");
-      setOpponentMove(otherMove);
+      if (otherMoveByte === null) throw new Error("Opponent timeout");
+      const otherMoveName: Move =
+        otherMoveByte === 1 ? "rock" : otherMoveByte === 2 ? "paper" : "scissors";
+      setOpponentMove(otherMoveName);
       setPhase("resolved");
 
       // Refresh streak

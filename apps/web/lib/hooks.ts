@@ -6,7 +6,14 @@ import { PublicKey } from "@solana/web3.js";
 import { PROGRAM_ID, getProgram } from "./anchor";
 
 export interface FeedEvent {
-  kind: "Matched" | "Resolved" | "QueueJoined" | "Burned" | "Streak";
+  kind:
+    | "Matched"
+    | "Resolved"
+    | "TimeoutResolved"
+    | "QueueJoined"
+    | "EntryCancelled"
+    | "PoolInitialized"
+    | "Revealed";
   signature: string;
   slot: number;
   data: any;
