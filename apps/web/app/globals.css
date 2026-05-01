@@ -391,7 +391,17 @@ canvas.pixelated {
     height: auto !important;
     padding: 12px 18px !important;
     line-height: 1 !important;
+    white-space: nowrap !important;
+    min-width: 0 !important;
     transition: all 0.18s ease !important;
+  }
+  /* Compact wallet button on mobile */
+  @media (max-width: 640px) {
+    .wallet-adapter-button-trigger {
+      font-size: 9px !important;
+      padding: 8px 10px !important;
+      letter-spacing: 0.04em !important;
+    }
   }
   .wallet-adapter-button-trigger:hover {
     background: var(--bg-base) !important;

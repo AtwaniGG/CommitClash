@@ -29,7 +29,7 @@ const mono = Silkscreen({
 export const metadata: Metadata = {
   title: "COMMITCLASH",
   description:
-    "Rock. Paper. Scissors. On Solana. 75/12.5/12.5. Real burns, real streaks. Commit. Clash.",
+    "Rock. Paper. Scissors. On Solana. 85/7.5/7.5. Real burns, real streaks. Commit. Clash.",
 };
 
 export const viewport: Viewport = {

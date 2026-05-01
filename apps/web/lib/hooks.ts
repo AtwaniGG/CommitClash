@@ -23,7 +23,7 @@ export interface FeedEvent {
 export interface LiveMetrics {
   inQueue: number;        // QueueEntry accounts that exist right now
   matchesActive: number;  // Match accounts in AwaitingReveals
-  uniqueRecent: number;   // unique players in last ~50 events
+  totalPlayers: number;   // PlayerStats accounts ever created (all-time players)
   events: FeedEvent[];    // most-recent program events
   loading: boolean;
 }
@@ -36,7 +36,7 @@ const SIG_LIMIT = 12;          // signatures pulled per tick
 let __metricsCache: LiveMetrics = {
   inQueue: 0,
   matchesActive: 0,
-  uniqueRecent: 0,
+  totalPlayers: 0,
   events: [],
   loading: true,
 };
@@ -63,14 +63,18 @@ export function useLiveMetrics(): LiveMetrics {
         // Discriminators are the first 8 bytes of each account.
         const QUEUE_ENTRY_DISC = (program.account as any).queueEntry.discriminator as Uint8Array;
         const MATCH_DISC = (program.account as any).match.discriminator as Uint8Array;
+        const PLAYER_STATS_DISC = (program.account as any).playerStats.discriminator as Uint8Array;
         const eq = (a: Uint8Array, b: Uint8Array) =>
           a.length === b.length && a.every((v, i) => v === b[i]);
 
         let inQueue = 0;
         let matches = 0;
+        let totalPlayers = 0;
         for (const a of accs) {
-          if (eq(new Uint8Array(a.account.data), QUEUE_ENTRY_DISC)) inQueue++;
-          else if (eq(new Uint8Array(a.account.data), MATCH_DISC)) matches++;
+          const data = new Uint8Array(a.account.data);
+          if (eq(data, QUEUE_ENTRY_DISC)) inQueue++;
+          else if (eq(data, MATCH_DISC)) matches++;
+          else if (eq(data, PLAYER_STATS_DISC)) totalPlayers++;
         }
 
         // Recent events via getSignaturesForAddress + getParsedTransactions
@@ -83,7 +87,6 @@ export function useLiveMetrics(): LiveMetrics {
         );
 
         const events: FeedEvent[] = [];
-        const players = new Set<string>();
         for (let i = 0; i < txs.length; i++) {
           const tx = txs[i];
           const sig = sigs[i];
@@ -104,9 +107,6 @@ export function useLiveMetrics(): LiveMetrics {
                 data: parsed.data,
                 timestamp: (sig.blockTime ?? 0) * 1000,
               });
-              if (parsed.data?.player) players.add(parsed.data.player.toBase58());
-              if (parsed.data?.playerA) players.add(parsed.data.playerA.toBase58());
-              if (parsed.data?.playerB) players.add(parsed.data.playerB.toBase58());
             } catch {
               // not an anchor event we care about
             }
@@ -117,7 +117,7 @@ export function useLiveMetrics(): LiveMetrics {
           __metricsCache = {
             inQueue,
             matchesActive: matches,
-            uniqueRecent: players.size,
+            totalPlayers,
             events,
             loading: false,
           };

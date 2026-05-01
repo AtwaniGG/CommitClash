@@ -51,8 +51,10 @@ pub struct InitializePool<'info> {
 }
 
 pub fn handler(ctx: Context<InitializePool>, pool_id: u64, entry_amount: u64) -> Result<()> {
+    // Pot = 2 * entry must be divisible by 40 so the 7.5% / 42.5% / 85% splits
+    // are all exact integers (gcd(3,40)=1, gcd(17,40)=1). entry % 20 == 0 ⇒ pot % 40 == 0.
     require!(
-        entry_amount > 0 && entry_amount % 4 == 0,
+        entry_amount > 0 && entry_amount % 20 == 0,
         RpsError::InvalidEntryAmount
     );
 

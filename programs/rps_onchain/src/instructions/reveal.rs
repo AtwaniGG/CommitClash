@@ -161,8 +161,13 @@ fn do_resolve(
 ) -> Result<()> {
     let outcome = compare_moves(move_a, move_b);
     let pot = ctx.accounts.the_match.pot;
-    let burn_amount = pot / 8;
-    let treasury_amount = pot / 8;
+    // 85% winner / 7.5% burn / 7.5% treasury. Tie: 42.5% each player + same fees.
+    // pot * 3 / 40 == 7.5%; entry_amount % 20 == 0 ensures clean integer math.
+    let burn_amount = pot
+        .checked_mul(3)
+        .ok_or(RpsError::MathOverflow)?
+        / 40;
+    let treasury_amount = burn_amount;
     let remaining = pot
         .checked_sub(burn_amount)
         .and_then(|v| v.checked_sub(treasury_amount))

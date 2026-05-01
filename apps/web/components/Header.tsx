@@ -6,24 +6,29 @@ import { WalletButton } from "./wallet/WalletButton";
 import { cn } from "@/lib/cn";
 import { useLiveMetrics } from "@/lib/hooks";
 
-const NAV = [
+const NAV: { href: string; label: string }[] = [
   { href: "/", label: "LOBBY" },
   { href: "/me", label: "ME" },
   { href: "/stats", label: "STATS" },
-] as const;
+  { href: "/whitepaper", label: "PAPER" },
+];
 
 export function Header() {
   const pathname = usePathname();
-  const { inQueue, matchesActive, uniqueRecent, loading } = useLiveMetrics();
+  const { inQueue, matchesActive, totalPlayers, loading } = useLiveMetrics();
 
   return (
     <header className="border-b border-edge bg-bg-deep/90 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4">
-        <Link href="/" className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 sm:gap-6 px-4 sm:px-6 py-3 sm:py-4">
+        <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
           <Logo />
-          <div>
-            <div className="text-pixel-md glow-magenta">COMMITCLASH</div>
-            <div className="text-pixel-xs text-ink-mute">RPS // ON-CHAIN.SOL</div>
+          <div className="min-w-0">
+            <div className="text-pixel-sm sm:text-pixel-md glow-magenta truncate">
+              COMMITCLASH
+            </div>
+            <div className="hidden sm:block text-pixel-xs text-ink-mute">
+              RPS // ON-CHAIN.SOL
+            </div>
           </div>
         </Link>
 
@@ -47,9 +52,9 @@ export function Header() {
           })}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="hidden md:flex items-center gap-3 border border-edge px-3 py-1.5">
-            <Stat label="ONLINE" value={loading ? "—" : `${uniqueRecent}`} tone="ok" />
+            <Stat label="PLAYERS" value={loading ? "—" : `${totalPlayers}`} tone="ok" />
             <span className="text-edge">|</span>
             <Stat label="IN QUEUE" value={loading ? "—" : `${inQueue}`} tone="cyan" />
             <span className="text-edge">|</span>

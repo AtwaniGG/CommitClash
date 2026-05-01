@@ -1,15 +1,7 @@
 import Link from "next/link";
 import { PixelFrame } from "@/components/ui/PixelFrame";
 import { MoveSprite } from "@/components/sprites/MoveSprite";
-
-// Mock data — wire to RPC once program is deployed
-const STATS = {
-  rounds_played: 12_847,
-  total_burned: 96_352_500, // raw token amount (with 6 decimals it's ~96.3M)
-  treasury: 96_352_500,
-  total_volume: 770_820_000,
-  supply_remaining: 903_647_500,
-};
+import { LiveStatsGrid } from "@/components/LiveStatsGrid";
 
 const POOLS = [
   {
@@ -80,8 +72,8 @@ export default function Lobby() {
             <span className="term-cursor" />
           </h1>
           <p className="font-body text-2xl text-ink-dim leading-snug max-w-xl">
-            Stake $RPS. Get matched. Winner takes <span className="glow-ok">75%</span>.{" "}
-            <span className="glow-burn">12.5% burns</span> forever. <span className="glow-acid">12.5%</span> to treasury. No house, no admin override, no edge.
+            Stake $RPS. Get matched. Winner takes <span className="glow-ok">85%</span>.{" "}
+            <span className="glow-burn">7.5% burns</span> forever. <span className="glow-acid">7.5%</span> to treasury. No house, no admin override, no edge.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/play/0" className="pixel-btn pixel-btn--magenta">
@@ -115,26 +107,8 @@ export default function Lobby() {
         </PixelFrame>
       </section>
 
-      {/* GLOBAL STATS */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatTile label="ROUNDS PLAYED" value={STATS.rounds_played.toLocaleString()} />
-        <StatTile
-          label="$RPS BURNED"
-          value={fmtCompact(STATS.total_burned)}
-          tone="burn"
-        />
-        <StatTile
-          label="TREASURY"
-          value={fmtCompact(STATS.treasury)}
-          tone="acid"
-        />
-        <StatTile
-          label="SUPPLY REMAINING"
-          value={`${((STATS.supply_remaining / 1_000_000_000) * 100).toFixed(2)}%`}
-          tone="ok"
-          sub={`${fmtCompact(STATS.supply_remaining)} / 1B`}
-        />
-      </section>
+      {/* GLOBAL STATS — live from chain */}
+      <LiveStatsGrid />
 
       {/* POOLS + RECENT */}
       <section className="grid lg:grid-cols-[1fr_360px] gap-6">
@@ -204,7 +178,7 @@ export default function Lobby() {
               n: "04",
               title: "PAYOUT",
               body:
-                "Atomic settlement. Winner gets 75%, 12.5% real burn (Mint.supply ↓), 12.5% to treasury. On-chain, every time.",
+                "Atomic settlement. Winner gets 85%, 7.5% real burn (Mint.supply ↓), 7.5% to treasury. On-chain, every time.",
             },
           ].map((step) => (
             <PixelFrame key={step.n} title={`STEP_${step.n}`} tone="cyan">

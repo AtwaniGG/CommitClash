@@ -310,8 +310,9 @@ describe("rps_onchain", () => {
         .rpc();
 
       const pot = ENTRY_AMOUNT * 2n;
-      const burnAmount = pot / 8n;
-      const treasuryAmount = pot / 8n;
+      // 85% winner / 7.5% burn / 7.5% treasury (pot * 3/40)
+      const burnAmount = (pot * 3n) / 40n;
+      const treasuryAmount = burnAmount;
       const winnerAmount = pot - burnAmount - treasuryAmount;
 
       // Supply went down (real burn)
@@ -441,7 +442,7 @@ describe("rps_onchain", () => {
         .rpc();
 
       const pot = ENTRY_AMOUNT * 2n;
-      const eachShare = (pot - pot / 8n - pot / 8n) / 2n; // 37.5%
+      const eachShare = (pot - (pot * 3n) / 40n - (pot * 3n) / 40n) / 2n; // 42.5%
 
       const aliceAfter = (await getAccount(connection, aliceTok)).amount;
       const bobAfter = (await getAccount(connection, bobTok)).amount;

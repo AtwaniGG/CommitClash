@@ -120,8 +120,9 @@ pub fn handler(ctx: Context<ResolveTimeout>, pool_id: u64, _match_id: u64) -> Re
         (true, false) => {
             // A wins by forfeit
             scenario = 0;
-            burned = pot / 8;
-            to_treasury = pot / 8;
+            // 85/7.5/7.5 split; pot * 3 / 40 == 7.5%
+            burned = pot.checked_mul(3).ok_or(RpsError::MathOverflow)? / 40;
+            to_treasury = burned;
             paid_a = pot - burned - to_treasury;
 
             token::burn(
@@ -164,8 +165,9 @@ pub fn handler(ctx: Context<ResolveTimeout>, pool_id: u64, _match_id: u64) -> Re
         (false, true) => {
             // B wins by forfeit
             scenario = 1;
-            burned = pot / 8;
-            to_treasury = pot / 8;
+            // 85/7.5/7.5 split; pot * 3 / 40 == 7.5%
+            burned = pot.checked_mul(3).ok_or(RpsError::MathOverflow)? / 40;
+            to_treasury = burned;
             paid_b = pot - burned - to_treasury;
 
             token::burn(

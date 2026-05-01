@@ -93,11 +93,11 @@ export default async function PlayPage({
 
           <PixelFrame title="DISTRIBUTION" tone="cyan">
             <div className="space-y-3 font-body text-base">
-              <Row label="WINNER" value="75%" glow="ok" />
-              <Row label="BURN" value="12.5%" glow="burn" />
-              <Row label="TREASURY" value="12.5%" glow="acid" />
+              <Row label="WINNER" value="85%" glow="ok" />
+              <Row label="BURN" value="7.5%" glow="burn" />
+              <Row label="TREASURY" value="7.5%" glow="acid" />
               <div className="border-t border-edge pt-3 text-pixel-xs text-ink-mute leading-relaxed">
-                Tie → 37.5% / 37.5% / 12.5% / 12.5%. <br />
+                Tie → 42.5% / 42.5% / 7.5% / 7.5%. <br />
                 Streak persists on tie, resets on loss only.
               </div>
             </div>

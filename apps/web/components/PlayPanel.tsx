@@ -13,6 +13,8 @@ import { MoveSprite, type Move } from "./sprites/MoveSprite";
 import { PixelFrame } from "./ui/PixelFrame";
 import { ResultDisplay } from "./ResultDisplay";
 import { StreakAnimation } from "./StreakAnimation";
+import { MatchFoundBanner } from "./MatchFoundBanner";
+import { ClashSequence } from "./ClashSequence";
 import { computeCommitment, MOVE_VALUE, generateNonce } from "@/lib/commit";
 import { generateSessionKey, exportSessionSecret } from "@/lib/sessionKey";
 import { savePendingPlay, bytesToHex, clearPendingPlay } from "@/lib/storage";
@@ -71,6 +73,8 @@ export function PlayPanel({
   const [opponentMove, setOpponentMove] = useState<Move | null>(null);
   const [streak, setStreak] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [matchedJustNow, setMatchedJustNow] = useState(false);
+  const [clashDone, setClashDone] = useState(false);
 
   // Pull live streak whenever wallet connects
   useEffect(() => {
@@ -208,7 +212,19 @@ export function PlayPanel({
     setPhase("idle");
     setSelected(null);
     setOpponentMove(null);
+    setMatchedJustNow(false);
+    setClashDone(false);
   }
+
+  // Trigger MatchFoundBanner once when the user first transitions into "matched"
+  useEffect(() => {
+    if (phase === "matched") setMatchedJustNow(true);
+  }, [phase]);
+
+  // Reset clash-done when starting a new round (back to idle)
+  useEffect(() => {
+    if (phase === "idle") setClashDone(false);
+  }, [phase]);
 
   if (!connected || !publicKey) {
     return (
@@ -227,6 +243,7 @@ export function PlayPanel({
   return (
     <>
       <StreakAnimation streak={streak} />
+      <MatchFoundBanner active={matchedJustNow && phase === "matched"} />
       <PixelFrame
         title={`${poolName} // ENTRY: ${entryAmount.toLocaleString()} $RPS (${usdEstimate})`}
         tone="magenta"
@@ -271,7 +288,7 @@ export function PlayPanel({
                 />
                 <Stat
                   label="MAX WIN"
-                  value={`${fmtCompact(entryAmount * 1.5)} $RPS`}
+                  value={`${fmtCompact(entryAmount * 1.7)} $RPS`}
                   glow="ok"
                 />
               </div>
@@ -344,12 +361,30 @@ export function PlayPanel({
             </motion.div>
           )}
 
-          {phase === "resolved" && selected && opponentMove && (
+          {phase === "resolved" && selected && opponentMove && !clashDone && (
             <motion.div
-              key="result"
+              key="clash"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              className="py-2"
+            >
+              <ClashSequence
+                myMove={selected}
+                theirMove={opponentMove}
+                outcome={deriveOutcome(selected, opponentMove)}
+                onComplete={() => setClashDone(true)}
+              />
+            </motion.div>
+          )}
+
+          {phase === "resolved" && selected && opponentMove && clashDone && (
+            <motion.div
+              key="result"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
               className="space-y-6"
             >
               <ResultDisplay
@@ -358,13 +393,13 @@ export function PlayPanel({
                 outcome={deriveOutcome(selected, opponentMove)}
                 payout={
                   deriveOutcome(selected, opponentMove) === "win"
-                    ? entryAmount * 1.5
+                    ? entryAmount * 1.7
                     : deriveOutcome(selected, opponentMove) === "tie"
-                    ? entryAmount * 0.75
+                    ? entryAmount * 0.85
                     : 0
                 }
-                burned={entryAmount * 0.25}
-                toTreasury={entryAmount * 0.25}
+                burned={entryAmount * 0.15}
+                toTreasury={entryAmount * 0.15}
               />
               <button
                 onClick={reset}

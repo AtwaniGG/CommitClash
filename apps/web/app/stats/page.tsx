@@ -132,7 +132,7 @@ export default function StatsPage() {
           </div>
           <SupplyBar pct={burnPct} />
           <div className="text-pixel-xs text-ink-mute leading-relaxed">
-            Each game burns 12.5% of pot via real <span className="font-mono">spl_token::burn</span> CPI.
+            Each game burns 7.5% of pot via real <span className="font-mono">spl_token::burn</span> CPI.
             Mint authority is irrelevant — Vault PDA owns its ATA and burns directly.
           </div>
         </div>
