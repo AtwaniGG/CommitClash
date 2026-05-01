@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Press_Start_2P, VT323, Silkscreen } from "next/font/google";
 import { WalletShell } from "@/components/wallet/WalletShell";
+import { LiveblocksWrapper } from "@/components/LiveblocksWrapper";
 import { Header } from "@/components/Header";
 import { Marquee } from "@/components/Marquee";
 import "./globals.css";
@@ -47,17 +48,19 @@ export default function RootLayout({
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="font-body antialiased animate-flicker">
         <WalletShell>
-          <div className="relative z-10 flex min-h-screen flex-col">
-            <Header />
-            <Marquee />
-            <main className="flex-1">{children}</main>
-            <footer className="border-t border-edge bg-bg-deep/80 px-6 py-4 text-pixel-xs text-ink-mute">
-              <div className="mx-auto flex max-w-7xl items-center justify-between">
-                <span>COMMITCLASH.SOL // v0.1.0</span>
-                <span className="glow-cyan">{"//"} BUILT ON SOLANA</span>
-              </div>
-            </footer>
-          </div>
+          <LiveblocksWrapper>
+            <div className="relative z-10 flex min-h-screen flex-col">
+              <Header />
+              <Marquee />
+              <main className="flex-1">{children}</main>
+              <footer className="border-t border-edge bg-bg-deep/80 px-6 py-4 text-pixel-xs text-ink-mute">
+                <div className="mx-auto flex max-w-7xl items-center justify-between">
+                  <span>COMMITCLASH.SOL // v0.1.0</span>
+                  <span className="glow-cyan">{"//"} BUILT ON SOLANA</span>
+                </div>
+              </footer>
+            </div>
+          </LiveblocksWrapper>
         </WalletShell>
       </body>
     </html>

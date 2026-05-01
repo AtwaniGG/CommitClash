@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { WalletButton } from "./wallet/WalletButton";
 import { cn } from "@/lib/cn";
 import { useLiveMetrics } from "@/lib/hooks";
+import { OnlineCounter } from "./OnlineCounter";
 
 const NAV: { href: string; label: string }[] = [
   { href: "/", label: "LOBBY" },
@@ -15,7 +16,7 @@ const NAV: { href: string; label: string }[] = [
 
 export function Header() {
   const pathname = usePathname();
-  const { inQueue, matchesActive, totalPlayers, loading } = useLiveMetrics();
+  const { inQueue, matchesActive, loading } = useLiveMetrics();
 
   return (
     <header className="border-b border-edge bg-bg-deep/90 backdrop-blur-sm">
@@ -54,7 +55,7 @@ export function Header() {
 
         <div className="flex items-center gap-3 shrink-0">
           <div className="hidden md:flex items-center gap-3 border border-edge px-3 py-1.5">
-            <Stat label="PLAYERS" value={loading ? "—" : `${totalPlayers}`} tone="ok" />
+            <OnlineCounter />
             <span className="text-edge">|</span>
             <Stat label="IN QUEUE" value={loading ? "—" : `${inQueue}`} tone="cyan" />
             <span className="text-edge">|</span>
