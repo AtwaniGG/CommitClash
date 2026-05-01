@@ -13,6 +13,7 @@ import {
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountIdempotentInstruction,
   getAssociatedTokenAddressSync,
   getAccount,
   getMint,
@@ -154,6 +155,17 @@ export async function joinPool({
   const player = wallet.publicKey;
   const playerAta = getAssociatedTokenAddressSync(RPS_MINT, player);
 
+  // Auto-create the player's $RPS ATA if missing. Idempotent — no-op if it
+  // already exists. Without this, brand-new wallets that haven't been
+  // faucet'd hit AnchorError(AccountNotInitialized) on the joinSolo /
+  // joinAndMatch token-account constraint.
+  const ataIx = createAssociatedTokenAccountIdempotentInstruction(
+    player,      // payer
+    playerAta,   // ata to create
+    player,      // owner
+    RPS_MINT     // mint
+  );
+
   if (head === tail) {
     // Queue empty → joinSolo
     const tx = await (program.methods as any)
@@ -162,6 +174,7 @@ export async function joinPool({
         player,
         playerTokenAccount: playerAta,
       })
+      .preInstructions([ataIx])
       .rpc();
     return { tx, matchId: null };
   } else {
@@ -177,6 +190,7 @@ export async function joinPool({
         headPlayer: headEntry.player,
         playerTokenAccount: playerAta,
       })
+      .preInstructions([ataIx])
       .rpc();
     return { tx, matchId };
   }
