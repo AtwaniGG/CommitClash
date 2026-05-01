@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   useAnchorWallet,
   useConnection,
@@ -75,6 +75,9 @@ export function PlayPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [matchedJustNow, setMatchedJustNow] = useState(false);
   const [clashDone, setClashDone] = useState(false);
+  // Synchronous re-entry lock so a double-click can't submit twice.
+  // (React state updates are async — useRef gives us a sync guard.)
+  const submittingRef = useRef(false);
 
   // Pull live streak whenever wallet connects
   useEffect(() => {
@@ -86,6 +89,9 @@ export function PlayPanel({
 
   const submit = useCallback(async () => {
     if (!publicKey || !anchorWallet || !selected) return;
+    // Block re-entry: if we're already in flight, ignore the click.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setErrorMsg(null);
 
     const moveByte = MOVE_VALUE[selected];
@@ -119,6 +125,7 @@ export function PlayPanel({
       const result = deriveOutcome(selected, theirs);
       setStreak((s) => (result === "win" ? s + 1 : result === "loss" ? 0 : s));
       clearPendingPlay(publicKey.toBase58(), bytesToHex(commitment));
+      submittingRef.current = false;
       return;
     }
 
@@ -203,8 +210,17 @@ export function PlayPanel({
       clearPendingPlay(publicKey.toBase58(), bytesToHex(commitment));
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err?.message ?? String(err));
+      const msg = err?.message ?? String(err);
+      // "Already processed" means our tx hit chain twice — usually because of
+      // a network retry. Don't surface it as a hard error, the first attempt succeeded.
+      if (msg.toLowerCase().includes("already been processed")) {
+        console.warn("Duplicate tx submission — first one likely succeeded");
+      } else {
+        setErrorMsg(msg);
+      }
       setPhase("idle");
+    } finally {
+      submittingRef.current = false;
     }
   }, [publicKey, anchorWallet, selected, poolId, programDeployed, connection]);
 

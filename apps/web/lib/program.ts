@@ -133,8 +133,40 @@ export async function fetchSupplyInfo(connection: Connection): Promise<{
 /**
  * Joins the pool. Reads queue state to choose joinSolo vs joinAndMatch.
  * Returns the matchId IF we matched, or null if we just queued.
+ *
+ * Retries up to 3 times if the queue state changes between our local read
+ * and the on-chain execution (which would otherwise surface as
+ * ConstraintSeeds, QueueNotEmpty, or QueueEmpty errors).
  */
-export async function joinPool({
+export async function joinPool(args: {
+  connection: Connection;
+  wallet: AnchorWallet;
+  poolId: number;
+  commitment: Uint8Array;
+  sessionPubkey: PublicKey;
+}): Promise<{ tx: string; matchId: bigint | null }> {
+  let lastErr: any;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await joinPoolOnce(args);
+    } catch (err: any) {
+      lastErr = err;
+      const msg = (err?.message ?? String(err)).toLowerCase();
+      const transient =
+        msg.includes("constraintseeds") ||
+        msg.includes("queueempty") ||
+        msg.includes("queuenotempty") ||
+        msg.includes("seeds constraint") ||
+        msg.includes("blockhash not found");
+      if (!transient) throw err;
+      // Brief backoff to let chain state settle, then re-read pool state
+      await new Promise((r) => setTimeout(r, 600));
+    }
+  }
+  throw lastErr;
+}
+
+async function joinPoolOnce({
   connection,
   wallet,
   poolId,
@@ -148,29 +180,23 @@ export async function joinPool({
   sessionPubkey: PublicKey;
 }): Promise<{ tx: string; matchId: bigint | null }> {
   const program = getProgram(connection, wallet);
+  const anchor = await import("@coral-xyz/anchor");
 
-  // Read pool to decide joinSolo vs joinAndMatch
+  // Re-read pool fresh on each attempt so the PDA derivation uses current state.
   const pool = await (program.account as any).pool.fetch(poolPda(poolId)[0]);
   const head = BigInt(pool.queueHead.toString());
   const tail = BigInt(pool.queueTail.toString());
   const player = wallet.publicKey;
   const playerAta = getAssociatedTokenAddressSync(RPS_MINT, player);
 
-  // Auto-create the player's $RPS ATA if missing. Idempotent — no-op if it
-  // already exists. Without this, brand-new wallets that haven't been
-  // faucet'd hit AnchorError(AccountNotInitialized) on the joinSolo /
-  // joinAndMatch token-account constraint.
+  // Idempotent ATA-create + session-key SOL pre-fund. Both are essential so
+  // brand-new wallets and ephemeral session keys can transact.
   const ataIx = createAssociatedTokenAccountIdempotentInstruction(
-    player,      // payer
-    playerAta,   // ata to create
-    player,      // owner
-    RPS_MINT     // mint
+    player,
+    playerAta,
+    player,
+    RPS_MINT
   );
-
-  // Pre-fund the session key so it can pay fees when it auto-reveals.
-  // Without this, the reveal tx fails with "Attempt to debit an account
-  // but found no record of a prior credit" because the ephemeral key has 0 SOL.
-  // 0.001 SOL covers ~200 tx fees worth of headroom.
   const fundSessionIx = SystemProgram.transfer({
     fromPubkey: player,
     toPubkey: sessionPubkey,
@@ -178,28 +204,44 @@ export async function joinPool({
   });
 
   if (head === tail) {
-    // Queue empty → joinSolo
+    // Queue empty → joinSolo. Pass queueEntry explicitly so the seed
+    // derivation is deterministic from OUR observed pool.queue_tail.
+    const [queueEntryAddr] = queueEntryPda(poolId, Number(tail));
     const tx = await (program.methods as any)
-      .joinSolo(new (await import("@coral-xyz/anchor")).BN(poolId), Array.from(commitment), sessionPubkey)
+      .joinSolo(
+        new anchor.BN(poolId),
+        Array.from(commitment),
+        sessionPubkey
+      )
       .accounts({
         player,
         playerTokenAccount: playerAta,
+        queueEntry: queueEntryAddr,
       })
       .preInstructions([ataIx, fundSessionIx])
       .rpc();
     return { tx, matchId: null };
   } else {
-    // Queue non-empty → joinAndMatch (consumes head)
+    // Queue non-empty → joinAndMatch. Explicitly pass headEntry, theMatch.
+    const [headEntryAddr] = queueEntryPda(poolId, Number(head));
     const headEntry = await (program.account as any).queueEntry.fetch(
-      queueEntryPda(poolId, Number(head))[0]
+      headEntryAddr
     );
     const matchId = BigInt(pool.nextMatchId.toString());
+    const [theMatchAddr] = matchPda(poolId, Number(matchId));
+
     const tx = await (program.methods as any)
-      .joinAndMatch(new (await import("@coral-xyz/anchor")).BN(poolId), Array.from(commitment), sessionPubkey)
+      .joinAndMatch(
+        new anchor.BN(poolId),
+        Array.from(commitment),
+        sessionPubkey
+      )
       .accounts({
         player,
         headPlayer: headEntry.player,
         playerTokenAccount: playerAta,
+        headEntry: headEntryAddr,
+        theMatch: theMatchAddr,
       })
       .preInstructions([ataIx, fundSessionIx])
       .rpc();
