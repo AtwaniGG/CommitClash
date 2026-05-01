@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Press_Start_2P, VT323, Silkscreen } from "next/font/google";
 import { WalletShell } from "@/components/wallet/WalletShell";
 import { AblyPresenceProvider } from "@/components/AblyPresence";
+import { WalletRecovery } from "@/components/WalletRecovery";
 import { Header } from "@/components/Header";
 import { Marquee } from "@/components/Marquee";
 import "./globals.css";
@@ -49,6 +50,7 @@ export default function RootLayout({
       <body className="font-body antialiased animate-flicker">
         <WalletShell>
           <AblyPresenceProvider>
+            <WalletRecovery />
             <div className="relative z-10 flex min-h-screen flex-col">
               <Header />
               <Marquee />

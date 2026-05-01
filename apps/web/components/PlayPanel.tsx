@@ -26,6 +26,8 @@ import {
   fetchPlayerStats,
   getCurrentNextMatchId,
   pollMatchUntilResolved,
+  getQueueHead,
+  findOwnQueueEntry,
 } from "@/lib/program";
 import { matchPda } from "@/lib/anchor";
 import { getProgram } from "@/lib/anchor";
@@ -93,6 +95,37 @@ export function PlayPanel({
     if (submittingRef.current) return;
     submittingRef.current = true;
     setErrorMsg(null);
+
+    // Pre-flight checks (skip in demo/sim modes)
+    if (programDeployed) {
+      try {
+        // 1. Do I already have a pending queue entry?
+        const own = await findOwnQueueEntry(connection, publicKey);
+        if (own) {
+          submittingRef.current = false;
+          setErrorMsg(
+            "You already have a pending commit on chain. Wait for an opponent, or call cancel after the timeout."
+          );
+          return;
+        }
+
+        // 2. Is the head entry stale (>60s old)? If so, warn the user that
+        //    matching with it likely leads to a forfeit because the opponent
+        //    is probably gone. We still let them through (their call), but
+        //    surface a non-blocking warning.
+        const head = await getQueueHead(connection, poolId);
+        if (head?.exists && head.ageSlots && head.ageSlots > 150n) {
+          // ~150 slots = ~60 sec. Just log a warning; don't block submission.
+          console.warn(
+            `[commit] head entry is ${head.ageSlots} slots old (~${
+              Number(head.ageSlots) * 0.4
+            }s) — opponent may not reveal`
+          );
+        }
+      } catch (preflightErr) {
+        console.warn("Pre-flight check failed (non-fatal):", preflightErr);
+      }
+    }
 
     const moveByte = MOVE_VALUE[selected];
     const nonce = generateNonce();
@@ -172,7 +205,7 @@ export function PlayPanel({
           player: publicKey,
           startMatchId,
           timeoutMs: 600_000, // 10 min
-          intervalMs: 2500,
+          intervalMs: 1200, // ~3 slots — faster discovery
         });
         if (!matchInfo) throw new Error("Match poll timed out — try again");
         setPhase("matched");

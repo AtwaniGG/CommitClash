@@ -318,6 +318,130 @@ export async function getCurrentNextMatchId(
 }
 
 /**
+ * Returns details about the current queue head, if any. Used by the frontend
+ * to detect whether (a) this wallet already has a pending entry, or (b) the
+ * head entry belongs to someone else and is stale (likely abandoned).
+ */
+export async function getQueueHead(
+  connection: Connection,
+  poolId: number
+): Promise<{
+  exists: boolean;
+  isMine?: boolean;
+  player?: PublicKey;
+  slotJoined?: bigint;
+  ageSlots?: bigint;
+} | null> {
+  try {
+    const program = getProgram(connection);
+    const pool = await (program.account as any).pool.fetch(poolPda(poolId)[0]);
+    const head = BigInt(pool.queueHead.toString());
+    const tail = BigInt(pool.queueTail.toString());
+    if (head === tail) return { exists: false };
+    const [entryAddr] = queueEntryPda(poolId, Number(head));
+    const entry = await (program.account as any).queueEntry.fetch(entryAddr);
+    const slotJoined = BigInt(entry.slotJoined.toString());
+    const currentSlot = BigInt(await connection.getSlot());
+    return {
+      exists: true,
+      player: new PublicKey(entry.player),
+      slotJoined,
+      ageSlots: currentSlot - slotJoined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the on-chain Config and returns the current reveal-timeout slot count.
+ * Cached for the page lifetime once read.
+ */
+let _cachedRevealTimeout: bigint | null = null;
+export async function getRevealTimeoutSlots(
+  connection: Connection
+): Promise<bigint> {
+  if (_cachedRevealTimeout !== null) return _cachedRevealTimeout;
+  try {
+    const program = getProgram(connection);
+    const cfg = await (program.account as any).config.fetch(configPda()[0]);
+    _cachedRevealTimeout = BigInt(cfg.revealTimeoutSlots.toString());
+    return _cachedRevealTimeout;
+  } catch {
+    return 1500n; // sensible fallback
+  }
+}
+
+/**
+ * Cancels the head queue entry for a pool. The on-chain instruction is
+ * permissionless after timeout — useful for auto-recovering a player's own
+ * stranded stake on reconnect.
+ */
+export async function cancelOwnQueueEntry({
+  connection,
+  wallet,
+  poolId,
+}: {
+  connection: Connection;
+  wallet: AnchorWallet;
+  poolId: number;
+}): Promise<string> {
+  const program = getProgram(connection, wallet);
+  const player = wallet.publicKey;
+  const playerAta = getAssociatedTokenAddressSync(RPS_MINT, player);
+  const anchor = await import("@coral-xyz/anchor");
+
+  const tx = await (program.methods as any)
+    .cancelQueueEntry(new anchor.BN(poolId))
+    .accounts({
+      caller: player,
+      headPlayer: player,
+      headPlayerToken: playerAta,
+    })
+    .rpc();
+  return tx;
+}
+
+/**
+ * Scan all QueueEntry accounts on the program and return the one belonging
+ * to `player` if any. Lets us detect "you have a pending commit" before
+ * letting them submit a new one.
+ */
+export async function findOwnQueueEntry(
+  connection: Connection,
+  player: PublicKey
+): Promise<{
+  poolId: number;
+  index: bigint;
+  commitment: Uint8Array;
+  slotJoined: bigint;
+} | null> {
+  const program = getProgram(connection);
+  try {
+    const all = await (program.account as any).queueEntry.all([
+      {
+        memcmp: {
+          // QueueEntry layout: 8 (disc) + 8 (pool_id) + 8 (index) + 32 (player) + ...
+          // player offset = 8 + 8 + 8 = 24
+          offset: 24,
+          bytes: player.toBase58(),
+        },
+      },
+    ]);
+    if (!all || all.length === 0) return null;
+    const a = all[0];
+    return {
+      poolId: Number(a.account.poolId),
+      index: BigInt(a.account.index.toString()),
+      commitment: new Uint8Array(a.account.commitment),
+      slotJoined: BigInt(a.account.slotJoined.toString()),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * After a reveal, waits for both reveals to land + match state = Resolved.
  * Returns the opponent's move number, or null on timeout.
  */
@@ -327,7 +451,7 @@ export async function pollMatchUntilResolved(
   matchId: bigint,
   imSideA: boolean,
   timeoutMs = 60_000,
-  intervalMs = 1500
+  intervalMs = 800
 ): Promise<number | null> {
   const program = getProgram(connection);
   const start = Date.now();
