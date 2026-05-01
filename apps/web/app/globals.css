@@ -422,20 +422,6 @@ canvas.pixelated {
   }
 }
 
-/* Hide Liveblocks attribution badge.
-   NOTE: required on free plan per Liveblocks ToS — upgrade to a paid plan
-   to remove legitimately. */
-a[href*="liveblocks.io"][target="_blank"],
-[data-liveblocks-attribution],
-[class*="liveblocks-attribution"],
-[class*="lb-attribution"],
-[class*="lb-portal"] a[href*="liveblocks.io"] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
 @layer utilities {
   .text-pixel-xs {
     font-family: var(--font-display), monospace;
