@@ -6,6 +6,7 @@
 import {
   Connection,
   Keypair,
+  LAMPORTS_PER_SOL,
   PublicKey,
   SystemProgram,
   Transaction,
@@ -166,6 +167,16 @@ export async function joinPool({
     RPS_MINT     // mint
   );
 
+  // Pre-fund the session key so it can pay fees when it auto-reveals.
+  // Without this, the reveal tx fails with "Attempt to debit an account
+  // but found no record of a prior credit" because the ephemeral key has 0 SOL.
+  // 0.001 SOL covers ~200 tx fees worth of headroom.
+  const fundSessionIx = SystemProgram.transfer({
+    fromPubkey: player,
+    toPubkey: sessionPubkey,
+    lamports: Math.round(0.001 * LAMPORTS_PER_SOL),
+  });
+
   if (head === tail) {
     // Queue empty → joinSolo
     const tx = await (program.methods as any)
@@ -174,7 +185,7 @@ export async function joinPool({
         player,
         playerTokenAccount: playerAta,
       })
-      .preInstructions([ataIx])
+      .preInstructions([ataIx, fundSessionIx])
       .rpc();
     return { tx, matchId: null };
   } else {
@@ -190,7 +201,7 @@ export async function joinPool({
         headPlayer: headEntry.player,
         playerTokenAccount: playerAta,
       })
-      .preInstructions([ataIx])
+      .preInstructions([ataIx, fundSessionIx])
       .rpc();
     return { tx, matchId };
   }
