@@ -49,6 +49,8 @@ import {
 } from "@/lib/program";
 import { matchPda, solMatchPda } from "@/lib/anchor";
 import { getProgram } from "@/lib/anchor";
+import { usePriceSnapshot } from "@/components/SolEquivalent";
+import { rpsToSol } from "@/lib/price";
 
 type Currency = "rps" | "sol";
 
@@ -124,7 +126,15 @@ export function PlayPanel({
     currency === "rps"
       ? `${fmtCompact(entryAmount * 1.7)} $RPS`
       : `${(solEntrySol * 1.7).toFixed(3)} SOL`;
-  const activeUsd = currency === "rps" ? usdEstimate : solUsdEstimate ?? "";
+  // Live $RPS→SOL price for the title bar's parenthetical estimate. SOL
+  // pools don't need it (entry is already in SOL units).
+  const priceSnap = usePriceSnapshot();
+  const activeSolHint = (() => {
+    if (currency !== "rps") return "";
+    if (!priceSnap) return "";
+    const sol = rpsToSol(entryAmount, priceSnap);
+    return `≈ ${sol >= 1 ? sol.toFixed(2) : sol.toFixed(3)} SOL`;
+  })();
   // Synchronous re-entry lock so a double-click can't submit twice.
   // (React state updates are async — useRef gives us a sync guard.)
   const submittingRef = useRef(false);
@@ -479,7 +489,7 @@ export function PlayPanel({
       <StreakAnimation streak={streak} />
       <MatchFoundBanner active={matchedJustNow && phase === "matched"} />
       <PixelFrame
-        title={`${poolName} // ENTRY: ${activeEntryLabel}${activeUsd ? ` (${activeUsd})` : ""}`}
+        title={`${poolName} // ENTRY: ${activeEntryLabel}${activeSolHint ? ` (${activeSolHint})` : ""}`}
         tone="magenta"
         status={
           <span className="flex items-center gap-2">

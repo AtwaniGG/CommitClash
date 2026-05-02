@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PixelFrame } from "@/components/ui/PixelFrame";
 import { MoveSprite } from "@/components/sprites/MoveSprite";
 import { LiveStatsGrid } from "@/components/LiveStatsGrid";
+import { SolEquivalent } from "@/components/SolEquivalent";
 
 const POOLS = [
   {
@@ -250,7 +251,7 @@ function PoolCard({
     queue_length: number;
     rounds: number;
     burned: number;
-    usd: string;
+    usd?: string; // legacy field, no longer rendered
     status: string;
     tone: "magenta" | "cyan" | "acid";
   };
@@ -273,7 +274,7 @@ function PoolCard({
             <div className="text-pixel-lg">
               {pool.entry.toLocaleString()}
             </div>
-            <div className="text-pixel-xs text-ink-dim">≈ {pool.usd} $RPS</div>
+            <SolEquivalent rps={pool.entry} className="text-pixel-xs text-ink-dim" />
           </div>
           <div className="text-right">
             <div className="text-pixel-xs text-ink-mute mb-1">POT</div>
