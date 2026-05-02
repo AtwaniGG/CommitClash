@@ -436,6 +436,40 @@ canvas.pixelated {
   }
 }
 
+/* Wallet-adapter dropdown overrides — MUST live outside @layer because the
+   wallet-adapter ships unlayered CSS, and per CSS cascade-layer rules,
+   unlayered styles beat any layer (even with !important inside the layer). */
+.wallet-adapter-dropdown {
+  position: relative;
+  z-index: 60;
+}
+.wallet-adapter-dropdown-list {
+  z-index: 60 !important;
+  background: #0a0a14 !important;
+  border: 1px solid var(--magenta) !important;
+  border-radius: 0 !important;
+  font-family: var(--font-display), monospace !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  box-shadow: 0 0 24px #ff2bd640 !important;
+  padding: 4px !important;
+  grid-row-gap: 0 !important;
+  gap: 0 !important;
+  margin-top: 6px !important;
+}
+.wallet-adapter-dropdown-list-item {
+  border-radius: 0 !important;
+  color: var(--ink) !important;
+  padding: 8px 14px !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+}
+.wallet-adapter-dropdown-list-item:hover {
+  background: var(--magenta) !important;
+  color: var(--bg-base) !important;
+}
+
 @layer utilities {
   .text-pixel-xs {
     font-family: var(--font-display), monospace;

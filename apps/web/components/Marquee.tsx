@@ -1,5 +1,6 @@
 "use client";
 
+import { PublicKey } from "@solana/web3.js";
 import { useLiveMetrics } from "@/lib/hooks";
 import { fmtCompact } from "@/lib/format";
 
@@ -8,59 +9,103 @@ function shortAddr(a: string): string {
   return `${a.slice(0, 4)}…${a.slice(-4)}`;
 }
 
+// Anchor's BorshCoder may decode event fields as either snake_case (matches
+// the on-chain IDL definition) or camelCase (legacy versions). Read both
+// shapes defensively so a single mismatched event can't crash the marquee.
+function pick(obj: any, ...keys: string[]): any {
+  if (!obj) return undefined;
+  for (const k of keys) if (obj[k] !== undefined) return obj[k];
+  return undefined;
+}
+
+function pkStr(v: any): string | null {
+  if (!v) return null;
+  if (typeof v === "string") return v;
+  if (typeof v?.toBase58 === "function") return v.toBase58();
+  // Some decoders hand back raw byte arrays — reconstruct a PublicKey.
+  try {
+    return new PublicKey(v).toBase58();
+  } catch {
+    return null;
+  }
+}
+
 export function Marquee() {
   const { events, loading, inQueue, matchesActive } = useLiveMetrics();
 
-  // Anchor decodes events to camelCase fields (playerA / paidB / poolId / ...).
   const items = events.flatMap((e) => {
-    if (e.kind === "Resolved") {
-      const { playerA, playerB, paidA, paidB, burned, outcome } = e.data ?? {};
-      const winner = outcome === 0 ? playerA : outcome === 1 ? playerB : null;
-      return [
-        {
-          dot: winner ? "ok" : "acid",
-          tag: "RESOLVED",
-          msg: winner
-            ? `${shortAddr(winner.toBase58())} +${fmtCompact(
-                Number(outcome === 0 ? paidA : paidB) / 1_000_000
-              )} $RPS`
-            : `TIE — both refunded ${fmtCompact(
-                (Number(paidA) + Number(paidB)) / 2 / 1_000_000
-              )}`,
-        },
-        {
-          dot: "burn",
-          tag: "BURN",
-          msg: `${fmtCompact(Number(burned) / 1_000_000)} $RPS gone forever`,
-        },
-      ];
+    try {
+      if (e.kind === "Resolved") {
+        const playerA = pkStr(pick(e.data, "playerA", "player_a"));
+        const playerB = pkStr(pick(e.data, "playerB", "player_b"));
+        const paidA = pick(e.data, "paidA", "paid_a");
+        const paidB = pick(e.data, "paidB", "paid_b");
+        const burned = pick(e.data, "burned");
+        const outcome = pick(e.data, "outcome");
+        const winner =
+          outcome === 0 ? playerA : outcome === 1 ? playerB : null;
+        const out: any[] = [];
+        if (winner) {
+          out.push({
+            dot: "ok",
+            tag: "RESOLVED",
+            msg: `${shortAddr(winner)} +${fmtCompact(
+              Number(outcome === 0 ? paidA : paidB) / 1_000_000
+            )} $RPS`,
+          });
+        } else if (paidA != null && paidB != null) {
+          out.push({
+            dot: "acid",
+            tag: "RESOLVED",
+            msg: `TIE — both refunded ${fmtCompact(
+              (Number(paidA) + Number(paidB)) / 2 / 1_000_000
+            )}`,
+          });
+        }
+        if (burned != null) {
+          out.push({
+            dot: "burn",
+            tag: "BURN",
+            msg: `${fmtCompact(Number(burned) / 1_000_000)} $RPS gone forever`,
+          });
+        }
+        return out;
+      }
+      if (e.kind === "Matched") {
+        const playerA = pkStr(pick(e.data, "playerA", "player_a"));
+        const playerB = pkStr(pick(e.data, "playerB", "player_b"));
+        const pot = pick(e.data, "pot");
+        const poolId = pick(e.data, "poolId", "pool_id");
+        if (!playerA || !playerB) return [];
+        return [
+          {
+            dot: "magenta",
+            tag: `MATCHED // POOL_${poolId}`,
+            msg: `${shortAddr(playerA)} ⚔ ${shortAddr(playerB)} for ${fmtCompact(
+              Number(pot) / 1_000_000
+            )} $RPS`,
+          },
+        ];
+      }
+      if (e.kind === "QueueJoined") {
+        const player = pkStr(pick(e.data, "player"));
+        const poolId = pick(e.data, "poolId", "pool_id");
+        if (!player) return [];
+        return [
+          {
+            dot: "cyan",
+            tag: `QUEUED // POOL_${poolId}`,
+            msg: `${shortAddr(player)} entered the queue`,
+          },
+        ];
+      }
+      return [];
+    } catch (err) {
+      console.warn("[Marquee] failed to render event", e.kind, err);
+      return [];
     }
-    if (e.kind === "Matched") {
-      const { playerA, playerB, pot, poolId } = e.data ?? {};
-      return [
-        {
-          dot: "magenta",
-          tag: `MATCHED // POOL_${poolId}`,
-          msg: `${shortAddr(playerA.toBase58())} ⚔ ${shortAddr(
-            playerB.toBase58()
-          )} for ${fmtCompact(Number(pot) / 1_000_000)} $RPS`,
-        },
-      ];
-    }
-    if (e.kind === "QueueJoined") {
-      const { player, poolId } = e.data ?? {};
-      return [
-        {
-          dot: "cyan",
-          tag: `QUEUED // POOL_${poolId}`,
-          msg: `${shortAddr(player.toBase58())} entered the queue`,
-        },
-      ];
-    }
-    return [];
   });
 
-  // If chain is empty, show metrics + a friendly idle message
   const display =
     items.length > 0
       ? items
@@ -73,9 +118,6 @@ export function Marquee() {
         ];
 
   // For a seamless loop the track must be at least 2× the viewport width.
-  // When we only have a placeholder (1 item), repeat enough times to overflow
-  // any reasonable display. The animation translates -50%, so we always need
-  // an even number of copies.
   const repetitions = display.length >= 6 ? 2 : Math.max(8, 12 - display.length);
   const tracks = Array.from({ length: repetitions }, () => display).flat();
 

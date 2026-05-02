@@ -4,12 +4,16 @@ import { PlayPanel } from "@/components/PlayPanel";
 import { PlayerHistory } from "@/components/PlayerHistory";
 import { PixelFrame } from "@/components/ui/PixelFrame";
 
-// Mock pool data — wire to RPC once program is deployed
+// Mock pool data — wire to RPC once program is deployed.
+// `solEntryLamports` matches what scripts/init-sol.ts seeds on chain. If you
+// change those values, update both. `solUsd` is purely informational.
 const POOLS: Record<string, {
   id: number;
   name: string;
   entry: number;
   usd: string;
+  solEntryLamports: bigint;
+  solUsd: string;
   rounds: number;
   burned: number;
   queueLength: number;
@@ -20,6 +24,8 @@ const POOLS: Record<string, {
     name: "POOL_30K",
     entry: 30_000,
     usd: "$2.07",
+    solEntryLamports: 15_000_000n, // 0.015 SOL
+    solUsd: "$2.10",
     rounds: 8312,
     burned: 62_340_000,
     queueLength: 1,
@@ -30,6 +36,8 @@ const POOLS: Record<string, {
     name: "POOL_100K",
     entry: 100_000,
     usd: "$6.90",
+    solEntryLamports: 50_000_000n, // 0.05 SOL
+    solUsd: "$6.50",
     rounds: 3421,
     burned: 25_657_500,
     queueLength: 0,
@@ -40,6 +48,8 @@ const POOLS: Record<string, {
     name: "POOL_1M",
     entry: 1_000_000,
     usd: "$69.00",
+    solEntryLamports: 500_000_000n, // 0.5 SOL
+    solUsd: "$65.00",
     rounds: 1114,
     burned: 8_355_000,
     queueLength: 1,
@@ -75,6 +85,9 @@ export default async function PlayPage({
             entryAmount={pool.entry}
             usdEstimate={pool.usd}
             programDeployed={PROGRAM_DEPLOYED}
+            solEntryLamports={pool.solEntryLamports}
+            solUsdEstimate={pool.solUsd}
+            solPoolAvailable={true}
           />
           <PlayerHistory />
         </div>

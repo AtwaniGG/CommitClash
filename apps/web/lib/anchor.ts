@@ -109,6 +109,80 @@ export function playerStatsPda(player: PublicKey): [PublicKey, number] {
   );
 }
 
+// ─── SOL parallel world PDAs ─────────────────────────────────────────────
+
+export const SOL_TREASURY = new PublicKey(
+  process.env.NEXT_PUBLIC_SOL_TREASURY ??
+    "8WzgAJPVNDBDQQ5Y1WyVAR7w7q9Y3EvSogZk1rDvhwJC"
+);
+
+export const SOL_BURN_WALLET = new PublicKey(
+  process.env.NEXT_PUBLIC_SOL_BURN_WALLET ??
+    "DQ4NGW79Vs8DNqyJniMbx8E1v3ZEvarsHB7m1N6pNNUJ"
+);
+
+export function solConfigPda(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_config")],
+    PROGRAM_ID
+  );
+}
+
+export function solGlobalStatsPda(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_stats")],
+    PROGRAM_ID
+  );
+}
+
+export function solPoolPda(poolId: number | bigint): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_pool"), u64Le(poolId)],
+    PROGRAM_ID
+  );
+}
+
+export function solPoolStatsPda(poolId: number | bigint): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_pool_stats"), u64Le(poolId)],
+    PROGRAM_ID
+  );
+}
+
+export function solVaultPda(poolId: number | bigint): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_vault"), u64Le(poolId)],
+    PROGRAM_ID
+  );
+}
+
+export function solQueueEntryPda(
+  poolId: number | bigint,
+  index: number | bigint
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_entry"), u64Le(poolId), u64Le(index)],
+    PROGRAM_ID
+  );
+}
+
+export function solMatchPda(
+  poolId: number | bigint,
+  matchId: number | bigint
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_match"), u64Le(poolId), u64Le(matchId)],
+    PROGRAM_ID
+  );
+}
+
+export function solPlayerStatsPda(player: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("sol_player"), player.toBuffer()],
+    PROGRAM_ID
+  );
+}
+
 // Cross-platform u64 LE encoder. Browser Buffer polyfills don't reliably
 // ship writeBigUInt64LE, so we use DataView which works everywhere.
 function u64Le(n: number | bigint): Uint8Array {

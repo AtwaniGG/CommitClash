@@ -86,4 +86,78 @@ pub mod rps_onchain {
     ) -> Result<()> {
         instructions::admin_update_config::handler(ctx, new_reveal_timeout_slots, update_treasury)
     }
+
+    // ─── SOL parallel world ────────────────────────────────────────────
+    // These instructions mirror the RPS flow but escrow native lamports
+    // instead of SPL tokens. The "burn" portion is routed to a configured
+    // wallet (deployer) for off-chain RPS buyback-and-burn.
+
+    /// Admin-only, one-time. Sets up SolConfig + SolGlobalStats. Reuses the
+    /// main Config admin for authentication.
+    pub fn initialize_sol_config(
+        ctx: Context<InitializeSolConfig>,
+        sol_treasury: Pubkey,
+        sol_burn_wallet: Pubkey,
+        reveal_timeout_slots: u64,
+    ) -> Result<()> {
+        instructions::initialize_sol_config::handler(
+            ctx,
+            sol_treasury,
+            sol_burn_wallet,
+            reveal_timeout_slots,
+        )
+    }
+
+    /// Admin-only. Stand up a new SOL stake-tier pool: SolPool, SolVault, SolPoolStats.
+    /// `entry_amount` (lamports) must satisfy `entry_amount % 20 == 0` for clean splits.
+    pub fn initialize_sol_pool(
+        ctx: Context<InitializeSolPool>,
+        pool_id: u64,
+        entry_amount: u64,
+    ) -> Result<()> {
+        instructions::initialize_sol_pool::handler(ctx, pool_id, entry_amount)
+    }
+
+    pub fn join_sol_solo(
+        ctx: Context<JoinSolSolo>,
+        pool_id: u64,
+        commitment: [u8; 32],
+        session_key: Pubkey,
+    ) -> Result<()> {
+        instructions::join_sol_solo::handler(ctx, pool_id, commitment, session_key)
+    }
+
+    pub fn join_sol_and_match(
+        ctx: Context<JoinSolAndMatch>,
+        pool_id: u64,
+        commitment: [u8; 32],
+        session_key: Pubkey,
+    ) -> Result<()> {
+        instructions::join_sol_and_match::handler(ctx, pool_id, commitment, session_key)
+    }
+
+    pub fn reveal_sol(
+        ctx: Context<RevealSol>,
+        pool_id: u64,
+        match_id: u64,
+        move_value: u8,
+        nonce: [u8; 32],
+    ) -> Result<()> {
+        instructions::reveal_sol::handler(ctx, pool_id, match_id, move_value, nonce)
+    }
+
+    pub fn resolve_timeout_sol(
+        ctx: Context<ResolveTimeoutSol>,
+        pool_id: u64,
+        match_id: u64,
+    ) -> Result<()> {
+        instructions::resolve_timeout_sol::handler(ctx, pool_id, match_id)
+    }
+
+    pub fn cancel_sol_queue_entry(
+        ctx: Context<CancelSolQueueEntry>,
+        pool_id: u64,
+    ) -> Result<()> {
+        instructions::cancel_sol_queue_entry::handler(ctx, pool_id)
+    }
 }

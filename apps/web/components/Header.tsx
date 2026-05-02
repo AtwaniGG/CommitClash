@@ -19,7 +19,7 @@ export function Header() {
   const { inQueue, matchesActive, loading } = useLiveMetrics();
 
   return (
-    <header className="border-b border-edge bg-bg-deep/90 backdrop-blur-sm">
+    <header className="relative z-50 border-b border-edge bg-bg-deep/90 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 sm:gap-6 px-4 sm:px-6 py-3 sm:py-4">
         <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
           <Logo />

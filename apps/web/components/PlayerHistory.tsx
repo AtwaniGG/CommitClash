@@ -1,11 +1,21 @@
 "use client";
 
-import { useWallet } from "@solana/wallet-adapter-react";
-import { useLiveMetrics } from "@/lib/hooks";
+import { useEffect, useState } from "react";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { fmtCompact } from "@/lib/format";
+import { fetchPlayerHistory } from "@/lib/program";
 import { PixelFrame } from "./ui/PixelFrame";
 
-const TOKEN_DECIMALS = 6;
+interface Game {
+  signature: string;
+  timestamp: number;
+  result: "WIN" | "LOSS" | "TIE";
+  payout: number;             // either RPS units OR SOL units, depending on currency
+  moveMine: number;
+  moveOther: number;
+  poolId: number;
+  currency: "rps" | "sol";
+}
 
 function timeAgo(ms: number): string {
   if (!ms) return "—";
@@ -16,41 +26,55 @@ function timeAgo(ms: number): string {
   return `${Math.round(m / 60)}h ago`;
 }
 
+function moveName(n: number): string {
+  return n === 1 ? "ROCK" : n === 2 ? "PAPER" : n === 3 ? "SCISSORS" : "?";
+}
+
 export function PlayerHistory() {
   const { publicKey } = useWallet();
-  const { events, loading } = useLiveMetrics();
+  const { connection } = useConnection();
+  const [games, setGames] = useState<Game[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!publicKey) {
+      setGames([]);
+      setLoading(false);
+      return;
+    }
+    const me = publicKey; // capture non-null
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval>;
+
+    async function load() {
+      try {
+        // Scan a narrower window (50 sigs) and refresh less often — full scans
+        // burn ~30 RPC requests and were a major contributor to 429 bursts.
+        const history = await fetchPlayerHistory(connection, me, 50);
+        if (!cancelled) {
+          setGames(history);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn("[PlayerHistory] fetch failed:", err);
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    // Refresh every 3 min, only when tab is visible
+    timer = setInterval(() => {
+      if (typeof document === "undefined" || !document.hidden) load();
+    }, 180_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [publicKey, connection]);
 
   if (!publicKey) return null;
-  const me = publicKey.toBase58();
-
-  // Anchor's event decoder converts Rust snake_case → TS camelCase.
-  // playerA / playerB / paidA / moveA / poolId, NOT player_a etc.
-  const games = events
-    .filter((e) => e.kind === "Resolved" || e.kind === "TimeoutResolved")
-    .map((e) => {
-      const a = e.data?.playerA?.toBase58?.();
-      const b = e.data?.playerB?.toBase58?.();
-      if (a !== me && b !== me) return null;
-      const isA = a === me;
-      const outcome = Number(e.data?.outcome ?? 2);
-      let result: "WIN" | "LOSS" | "TIE";
-      if (outcome === 2) result = "TIE";
-      else if ((outcome === 0 && isA) || (outcome === 1 && !isA)) result = "WIN";
-      else result = "LOSS";
-      const paid = isA ? e.data.paidA : e.data.paidB;
-      const moveMine = isA ? e.data.moveA : e.data.moveB;
-      const moveOther = isA ? e.data.moveB : e.data.moveA;
-      return {
-        signature: e.signature,
-        timestamp: e.timestamp,
-        result,
-        payout: Number(paid ?? 0) / 10 ** TOKEN_DECIMALS,
-        moveMine: Number(moveMine ?? 0),
-        moveOther: Number(moveOther ?? 0),
-        poolId: Number(e.data?.poolId ?? 0),
-      };
-    })
-    .filter((g): g is NonNullable<typeof g> => g !== null);
 
   return (
     <PixelFrame title="MY HISTORY" tone="cyan">
@@ -64,9 +88,9 @@ export function PlayerHistory() {
         </div>
       ) : (
         <ul className="space-y-2 font-mono text-sm">
-          {games.slice(0, 12).map((g, i) => (
+          {games.slice(0, 20).map((g, i) => (
             <li
-              key={i}
+              key={g.signature + i}
               className="grid grid-cols-[64px_72px_1fr_auto_64px] items-center gap-3 border-b border-edge/30 last:border-0 py-1.5"
             >
               <span
@@ -81,18 +105,32 @@ export function PlayerHistory() {
                 {g.result}
               </span>
               <span className="text-ink-mute text-pixel-xs">
-                POOL_{g.poolId === 0 ? "30K" : g.poolId === 1 ? "100K" : g.poolId === 2 ? "1M" : g.poolId}
+                POOL_
+                {g.poolId === 0
+                  ? "30K"
+                  : g.poolId === 1
+                  ? "100K"
+                  : g.poolId === 2
+                  ? "1M"
+                  : g.poolId}
               </span>
               <span className="text-ink-dim text-xs">
-                {moveName(g.moveMine)} <span className="text-ink-mute">vs</span>{" "}
+                {moveName(g.moveMine)}{" "}
+                <span className="text-ink-mute">vs</span>{" "}
                 {moveName(g.moveOther)}
               </span>
               <span
                 className={
-                  g.payout > 0 ? "glow-ok text-right" : "text-ink-mute text-right"
+                  g.payout > 0
+                    ? "glow-ok text-right"
+                    : "text-ink-mute text-right"
                 }
               >
-                {g.payout > 0 ? `+${fmtCompact(g.payout)}` : "—"}
+                {g.payout > 0
+                  ? g.currency === "sol"
+                    ? `+${g.payout.toFixed(3)} SOL`
+                    : `+${fmtCompact(g.payout)} $RPS`
+                  : "—"}
               </span>
               <span className="text-ink-mute text-xs text-right">
                 {timeAgo(g.timestamp)}
@@ -103,8 +141,4 @@ export function PlayerHistory() {
       )}
     </PixelFrame>
   );
-}
-
-function moveName(n: number): string {
-  return n === 1 ? "ROCK" : n === 2 ? "PAPER" : n === 3 ? "SCISSORS" : "?";
 }

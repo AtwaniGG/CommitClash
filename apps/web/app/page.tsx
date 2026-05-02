@@ -134,14 +134,21 @@ export default function Lobby() {
           <PixelFrame title="GAME_LOG.TXT" tone="magenta">
             <ul className="space-y-3 font-mono text-sm">
               {RECENT.map((g, i) => (
-                <li key={i} className="flex items-center justify-between gap-2">
-                  <span className="text-ink-mute w-10 shrink-0">[{g.time}]</span>
-                  <span className="flex items-center gap-1">
+                <li
+                  key={i}
+                  className="grid grid-cols-[40px_1fr_140px] items-center gap-2"
+                >
+                  <span className="text-ink-mute">[{g.time}]</span>
+                  <span className="flex items-center gap-1 justify-self-center">
                     <MoveSprite move={g.a} size={20} />
                     <span className="text-ink-mute">vs</span>
                     <MoveSprite move={g.b} size={20} />
                   </span>
-                  <span className={g.winner ? "glow-ok text-xs" : "glow-acid text-xs"}>
+                  <span
+                    className={`text-right whitespace-nowrap ${
+                      g.winner ? "glow-ok text-xs" : "glow-acid text-xs"
+                    }`}
+                  >
                     {g.winner ? `→ ${g.winner}` : "TIE"}
                   </span>
                 </li>

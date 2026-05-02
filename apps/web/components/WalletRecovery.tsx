@@ -9,11 +9,15 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import {
   cancelOwnQueueEntry,
+  cancelOwnSolQueueEntry,
   findOwnQueueEntry,
+  findOwnSolQueueEntry,
   getRevealTimeoutSlots,
 } from "@/lib/program";
 
 const SLOT_MS = 400;
+
+type Currency = "rps" | "sol";
 
 interface PendingState {
   poolId: number;
@@ -21,6 +25,7 @@ interface PendingState {
   slotJoined: bigint;
   ageSlots: bigint;
   timeoutSlots: bigint;
+  currency: Currency;
 }
 
 /**
@@ -55,7 +60,16 @@ export function WalletRecovery() {
     async function check() {
       try {
         if (!publicKey || !anchorWallet) return;
-        const own = await findOwnQueueEntry(connection, publicKey);
+        // Scan both currencies — user may have a stranded entry in either.
+        let own = await findOwnQueueEntry(connection, publicKey);
+        let cur: Currency = "rps";
+        if (!own) {
+          const solOwn = await findOwnSolQueueEntry(connection, publicKey);
+          if (solOwn) {
+            own = solOwn;
+            cur = "sol";
+          }
+        }
         if (cancelled || !own) return;
 
         const timeoutSlots = await getRevealTimeoutSlots(connection);
@@ -64,20 +78,17 @@ export function WalletRecovery() {
         setTickSlot(currentSlot);
 
         if (ageSlots > timeoutSlots) {
-          // Auto-cancel and refund
           if (cancelled) return;
           setWorking(true);
           try {
-            await cancelOwnQueueEntry({
+            const cancelFn = cur === "sol" ? cancelOwnSolQueueEntry : cancelOwnQueueEntry;
+            await cancelFn({
               connection,
               wallet: anchorWallet,
               poolId: own.poolId,
             });
-            // Pool 0 = 30k entry. Hardcoded for now (we only have one pool live).
             setRecoveredAmount(30_000);
           } catch (err: any) {
-            // Likely the entry was already canceled by someone else, OR
-            // the timeout hadn't actually elapsed yet (clock drift).
             console.warn("Auto-cancel failed:", err);
             setError(err?.message ?? String(err));
           } finally {
@@ -93,6 +104,7 @@ export function WalletRecovery() {
             slotJoined: own.slotJoined,
             ageSlots,
             timeoutSlots,
+            currency: cur,
           });
         }
       } catch (err) {
@@ -124,7 +136,9 @@ export function WalletRecovery() {
     setWorking(true);
     setError(null);
     try {
-      await cancelOwnQueueEntry({
+      const cancelFn =
+        pending.currency === "sol" ? cancelOwnSolQueueEntry : cancelOwnQueueEntry;
+      await cancelFn({
         connection,
         wallet: anchorWallet,
         poolId: pending.poolId,
