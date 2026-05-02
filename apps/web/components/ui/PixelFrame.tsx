@@ -28,12 +28,17 @@ export function PixelFrame({
   return (
     <div className={cn("pixel-frame", className)}>
       {title !== undefined && (
-        <div className={cn("pixel-titlebar", titlebarTone[tone])}>
-          <span className="flex items-center gap-2">
+        <div
+          className={cn(
+            "pixel-titlebar flex flex-wrap items-center justify-between gap-2",
+            titlebarTone[tone]
+          )}
+        >
+          <span className="flex items-center gap-2 min-w-0">
             <span aria-hidden>{"▶"}</span>
-            <span>{title}</span>
+            <span className="break-words">{title}</span>
           </span>
-          {status && <span>{status}</span>}
+          {status && <span className="shrink-0">{status}</span>}
         </div>
       )}
       <div className="p-5">{children}</div>

@@ -1,28 +1,33 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Slams in when phase first becomes "matched". Auto-dismisses after ~1.4s.
  * Use as a sibling to the play frame; it positions itself fixed over the viewport.
+ *
+ * Timing rules:
+ *   - active true  → show banner, (re)start a 1.4s hide timer
+ *   - active false → do nothing (let the existing timer hide it normally)
+ *   - active true again before the timer fires → cancel the OLD timer and
+ *     start fresh, so the banner stays visible the full 1.4s from the latest
+ *     trigger. Without this, a stale timer from a prior matched event would
+ *     hide the banner early during a re-match.
+ *   - unmount → leave the timer alone; setShow on a dead component is a no-op.
  */
 export function MatchFoundBanner({ active }: { active: boolean }) {
   const [show, setShow] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!active) return;
+    if (timerRef.current) clearTimeout(timerRef.current);
     setShow(true);
-    // No cleanup — we WANT the timer to fire even if `active` flips to
-    // false mid-window (e.g., phase moves matched → revealing within ms).
-    // Without this, clearTimeout cancels the auto-hide and the banner sticks.
-    const t = setTimeout(() => setShow(false), 1400);
-    return () => {
-      // Don't clear the timer — let it run. We just need to make sure if
-      // active toggles back on within the window we don't double-fire.
-      // Clearing show here is wrong; the timer will hide it.
-      void t;
-    };
+    timerRef.current = setTimeout(() => {
+      setShow(false);
+      timerRef.current = null;
+    }, 1400);
   }, [active]);
 
   return (

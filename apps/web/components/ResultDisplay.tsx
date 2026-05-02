@@ -13,6 +13,7 @@ export function ResultDisplay({
   payout,
   burned,
   toTreasury,
+  currency = "rps",
 }: {
   myMove: Move;
   theirMove: Move;
@@ -20,6 +21,8 @@ export function ResultDisplay({
   payout: number;
   burned: number;
   toTreasury: number;
+  /** Determines unit label + number formatting in the payout piles. */
+  currency?: "rps" | "sol";
 }) {
   const headline =
     outcome === "win" ? "▶ VICTORY" : outcome === "loss" ? "▶ DEFEAT" : "▶ TIE";
@@ -62,9 +65,9 @@ export function ResultDisplay({
       </div>
 
       <div className="grid grid-cols-3 gap-3 border-t border-edge pt-4">
-        <Pile label="YOU GET" value={payout} tone={outcome === "win" ? "ok" : outcome === "tie" ? "acid" : "default"} />
-        <Pile label="BURNED" value={burned} tone="burn" />
-        <Pile label="TREASURY" value={toTreasury} tone="acid" />
+        <Pile label="YOU GET" value={payout} currency={currency} tone={outcome === "win" ? "ok" : outcome === "tie" ? "acid" : "default"} />
+        <Pile label="BURNED" value={burned} currency={currency} tone="burn" />
+        <Pile label="TREASURY" value={toTreasury} currency={currency} tone="acid" />
       </div>
     </motion.div>
   );
@@ -96,10 +99,12 @@ function Pile({
   label,
   value,
   tone,
+  currency,
 }: {
   label: string;
   value: number;
   tone: "default" | "burn" | "acid" | "ok";
+  currency: "rps" | "sol";
 }) {
   const glow =
     tone === "burn"
@@ -109,11 +114,16 @@ function Pile({
       : tone === "ok"
       ? "glow-ok"
       : "text-ink";
+  // SOL is denominated in SOL units (e.g. 0.85), not millions of lamports —
+  // fmtCompact would round 0.85 → "0.9" with no decimals, so format manually.
+  const display =
+    currency === "sol" ? value.toFixed(3) : fmtCompact(value);
+  const unit = currency === "sol" ? "SOL" : "$RPS";
   return (
     <div>
       <div className="text-pixel-xs text-ink-mute">{label}</div>
       <div className={`text-pixel-md mt-1 ${glow}`}>
-        {fmtCompact(value)} <span className="text-ink-dim text-pixel-xs">$RPS</span>
+        {display} <span className="text-ink-dim text-pixel-xs">{unit}</span>
       </div>
     </div>
   );

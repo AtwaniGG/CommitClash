@@ -640,20 +640,31 @@ export function PlayPanel({
               transition={{ duration: 0.4 }}
               className="space-y-6"
             >
-              <ResultDisplay
-                myMove={selected}
-                theirMove={opponentMove}
-                outcome={deriveOutcome(selected, opponentMove)}
-                payout={
-                  deriveOutcome(selected, opponentMove) === "win"
-                    ? entryAmount * 1.7
-                    : deriveOutcome(selected, opponentMove) === "tie"
-                    ? entryAmount * 0.85
-                    : 0
-                }
-                burned={entryAmount * 0.15}
-                toTreasury={entryAmount * 0.15}
-              />
+              {(() => {
+                // Display amounts in whichever currency was actually played.
+                // RPS pool: entryAmount is already in $RPS units.
+                // SOL pool: convert lamports → SOL (fractional units).
+                const baseEntry =
+                  currency === "sol" ? solEntrySol : entryAmount;
+                const o = deriveOutcome(selected, opponentMove);
+                const payout =
+                  o === "win"
+                    ? baseEntry * 1.7
+                    : o === "tie"
+                    ? baseEntry * 0.85
+                    : 0;
+                return (
+                  <ResultDisplay
+                    myMove={selected}
+                    theirMove={opponentMove}
+                    outcome={o}
+                    payout={payout}
+                    burned={baseEntry * 0.15}
+                    toTreasury={baseEntry * 0.15}
+                    currency={currency}
+                  />
+                );
+              })()}
               <button
                 onClick={reset}
                 className="pixel-btn pixel-btn--magenta w-full text-pixel-md py-4"
