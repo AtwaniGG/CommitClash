@@ -90,20 +90,21 @@ function Stat({
 }
 
 function Logo() {
-  // 8x8 pixel logo: triangle of magenta+cyan blocks (R / P / S vibe)
+  // Tight 7x7 pixel cross (RPS color quartet around dark center).
+  // viewBox is cropped so the rendered icon has minimal padding.
   return (
     <svg
-      width={32}
-      height={32}
-      viewBox="0 0 8 8"
+      width={36}
+      height={36}
+      viewBox="0 0 7 7"
       shapeRendering="crispEdges"
-      className="pixelated"
+      className="pixelated shrink-0"
     >
-      <rect x={3} y={0} width={2} height={2} fill="#ff2bd6" />
-      <rect x={1} y={3} width={2} height={2} fill="#00f5d4" />
-      <rect x={5} y={3} width={2} height={2} fill="#fffb00" />
-      <rect x={3} y={6} width={2} height={2} fill="#00ff88" />
-      <rect x={3} y={3} width={2} height={2} fill="#0a0e1a" stroke="#e0e0ff" strokeWidth="0.3" />
+      <rect x={2} y={0} width={3} height={2} fill="#ff2bd6" />
+      <rect x={0} y={2} width={2} height={3} fill="#00f5d4" />
+      <rect x={5} y={2} width={2} height={3} fill="#fffb00" />
+      <rect x={2} y={5} width={3} height={2} fill="#00ff88" />
+      <rect x={2} y={2} width={3} height={3} fill="#0a0e1a" stroke="#e0e0ff" strokeWidth="0.25" />
     </svg>
   );
 }

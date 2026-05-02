@@ -300,8 +300,22 @@ canvas.pixelated {
     display: inline-flex;
     gap: 32px;
     padding: 8px 0;
-    animation: marquee 40s linear infinite;
+    /* keyframes defined below in raw CSS so Tailwind doesn't tree-shake them */
+    animation: marqueeScroll 40s linear infinite;
   }
+}
+
+/* Raw @keyframes (outside @layer so Tailwind never purges them) */
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@layer components {
 
   /* Status dot — pulsing live indicator */
   .status-dot {

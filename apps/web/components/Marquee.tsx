@@ -72,8 +72,12 @@ export function Marquee() {
           },
         ];
 
-  // Duplicate for seamless loop
-  const tracks = [...display, ...display];
+  // For a seamless loop the track must be at least 2× the viewport width.
+  // When we only have a placeholder (1 item), repeat enough times to overflow
+  // any reasonable display. The animation translates -50%, so we always need
+  // an even number of copies.
+  const repetitions = display.length >= 6 ? 2 : Math.max(8, 12 - display.length);
+  const tracks = Array.from({ length: repetitions }, () => display).flat();
 
   return (
     <div className="marquee">

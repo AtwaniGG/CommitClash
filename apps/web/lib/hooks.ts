@@ -3,7 +3,27 @@
 import { useEffect, useState } from "react";
 import { useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
-import { PROGRAM_ID, getProgram } from "./anchor";
+import { EventParser, BorshCoder } from "@coral-xyz/anchor";
+import { PROGRAM_ID, getProgram, RPS_IDL } from "./anchor";
+
+// Read discriminators straight from the IDL JSON. Anchor 0.31 doesn't expose
+// them as `program.account.X.discriminator` reliably — going to the source.
+const ACCOUNTS_IDL = (RPS_IDL as any).accounts ?? [];
+const QUEUE_ENTRY_DISC = new Uint8Array(
+  ACCOUNTS_IDL.find((a: any) => a.name === "QueueEntry")?.discriminator ?? []
+);
+const MATCH_DISC = new Uint8Array(
+  ACCOUNTS_IDL.find((a: any) => a.name === "Match")?.discriminator ?? []
+);
+const PLAYER_STATS_DISC = new Uint8Array(
+  ACCOUNTS_IDL.find((a: any) => a.name === "PlayerStats")?.discriminator ?? []
+);
+
+function discMatches(data: Uint8Array, disc: Uint8Array): boolean {
+  if (disc.length !== 8 || data.length < 8) return false;
+  for (let i = 0; i < 8; i++) if (data[i] !== disc[i]) return false;
+  return true;
+}
 
 export interface FeedEvent {
   kind:
@@ -29,8 +49,10 @@ export interface LiveMetrics {
 }
 
 // Free devnet RPC is rate-limited (~100 req/min). Be conservative.
-const POLL_MS = 30_000;       // metrics tick
-const SIG_LIMIT = 12;          // signatures pulled per tick
+// Set NEXT_PUBLIC_RPC_URL to a private RPC (Helius / QuickNode / Triton)
+// to lift this constraint and tighten the intervals.
+const POLL_MS = 45_000;        // metrics tick (was 30s)
+const SIG_LIMIT = 8;           // signatures pulled per tick (was 12)
 
 // Shared cache so multiple consumers (Header + Marquee) trigger one poll loop, not many.
 let __metricsCache: LiveMetrics = {
@@ -54,30 +76,22 @@ export function useLiveMetrics(): LiveMetrics {
 
     async function tick() {
       try {
-        const program = getProgram(connection);
-
-        // Live state via getProgramAccounts (cheap because we filter by discriminator size)
+        // ─── Live counts via getProgramAccounts ───
         const accs = await connection.getProgramAccounts(PROGRAM_ID, {
           dataSlice: { offset: 0, length: 8 },
         });
-        // Discriminators are the first 8 bytes of each account.
-        const QUEUE_ENTRY_DISC = (program.account as any).queueEntry.discriminator as Uint8Array;
-        const MATCH_DISC = (program.account as any).match.discriminator as Uint8Array;
-        const PLAYER_STATS_DISC = (program.account as any).playerStats.discriminator as Uint8Array;
-        const eq = (a: Uint8Array, b: Uint8Array) =>
-          a.length === b.length && a.every((v, i) => v === b[i]);
 
         let inQueue = 0;
         let matches = 0;
         let totalPlayers = 0;
         for (const a of accs) {
           const data = new Uint8Array(a.account.data);
-          if (eq(data, QUEUE_ENTRY_DISC)) inQueue++;
-          else if (eq(data, MATCH_DISC)) matches++;
-          else if (eq(data, PLAYER_STATS_DISC)) totalPlayers++;
+          if (discMatches(data, QUEUE_ENTRY_DISC)) inQueue++;
+          else if (discMatches(data, MATCH_DISC)) matches++;
+          else if (discMatches(data, PLAYER_STATS_DISC)) totalPlayers++;
         }
 
-        // Recent events via getSignaturesForAddress + getParsedTransactions
+        // ─── Recent events via EventParser (Anchor's official log parser) ───
         const sigs = await connection.getSignaturesForAddress(PROGRAM_ID, {
           limit: SIG_LIMIT,
         });
@@ -86,30 +100,28 @@ export function useLiveMetrics(): LiveMetrics {
           { commitment: "confirmed", maxSupportedTransactionVersion: 0 }
         );
 
+        const parser = new EventParser(
+          PROGRAM_ID,
+          new BorshCoder(RPS_IDL as any)
+        );
+
         const events: FeedEvent[] = [];
         for (let i = 0; i < txs.length; i++) {
           const tx = txs[i];
           const sig = sigs[i];
           if (!tx?.meta?.logMessages) continue;
-          for (const log of tx.meta.logMessages) {
-            // Anchor events appear as "Program data: <base64>"
-            if (!log.startsWith("Program data:")) continue;
-            try {
-              const parsed: any = (program.coder as any).events.decode(
-                log.slice("Program data: ".length).trim()
-              );
-              if (!parsed) continue;
-              const kind = parsed.name as FeedEvent["kind"];
+          try {
+            for (const event of parser.parseLogs(tx.meta.logMessages)) {
               events.push({
-                kind,
+                kind: event.name as FeedEvent["kind"],
                 signature: sig.signature,
                 slot: tx.slot,
-                data: parsed.data,
+                data: event.data,
                 timestamp: (sig.blockTime ?? 0) * 1000,
               });
-            } catch {
-              // not an anchor event we care about
             }
+          } catch {
+            // Some logs may include stack/CPI noise that doesn't decode — skip silently.
           }
         }
 
@@ -124,7 +136,6 @@ export function useLiveMetrics(): LiveMetrics {
           __subscribers.forEach((cb) => cb(__metricsCache));
         }
       } catch (err) {
-        // Silent — keep prior state on transient RPC failures
         if (!cancelled) {
           __metricsCache = { ...__metricsCache, loading: false };
           __subscribers.forEach((cb) => cb(__metricsCache));
@@ -132,13 +143,25 @@ export function useLiveMetrics(): LiveMetrics {
       }
     }
 
-    // Singleton poller — only one tick loop regardless of consumer count
+    // Singleton poller with visibility-pause: only fires when the tab is
+    // actually focused. Idle background tabs stop hammering the RPC.
     if (!__pollerStarted) {
       __pollerStarted = true;
-      tick();
-      const id = setInterval(tick, POLL_MS);
-      // Keep id alive for module lifetime; HMR will reset
+      const visibleTick = () => {
+        if (typeof document !== "undefined" && document.hidden) return;
+        tick();
+      };
+      visibleTick();
+      const id = setInterval(visibleTick, POLL_MS);
       (globalThis as any).__metricsTimer = id;
+
+      // Trigger an immediate tick when the user returns to the tab so they
+      // see fresh data right away (instead of waiting up to 45s).
+      if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) visibleTick();
+        });
+      }
     }
 
     return () => {
@@ -185,8 +208,12 @@ export function useGlobalStats() {
         // ignore
       }
     }
-    tick();
-    timer = setInterval(tick, 45_000);
+    const visibleTick = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      tick();
+    };
+    visibleTick();
+    timer = setInterval(visibleTick, 60_000); // was 45s — bumped to 60s
     return () => {
       cancelled = true;
       clearInterval(timer);
