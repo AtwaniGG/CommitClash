@@ -11,11 +11,18 @@ export function MatchFoundBanner({ active }: { active: boolean }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    if (active) {
-      setShow(true);
-      const t = setTimeout(() => setShow(false), 1400);
-      return () => clearTimeout(t);
-    }
+    if (!active) return;
+    setShow(true);
+    // No cleanup — we WANT the timer to fire even if `active` flips to
+    // false mid-window (e.g., phase moves matched → revealing within ms).
+    // Without this, clearTimeout cancels the auto-hide and the banner sticks.
+    const t = setTimeout(() => setShow(false), 1400);
+    return () => {
+      // Don't clear the timer — let it run. We just need to make sure if
+      // active toggles back on within the window we don't double-fire.
+      // Clearing show here is wrong; the timer will hide it.
+      void t;
+    };
   }, [active]);
 
   return (

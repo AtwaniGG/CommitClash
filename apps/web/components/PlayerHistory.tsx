@@ -23,11 +23,13 @@ export function PlayerHistory() {
   if (!publicKey) return null;
   const me = publicKey.toBase58();
 
+  // Anchor's event decoder converts Rust snake_case → TS camelCase.
+  // playerA / playerB / paidA / moveA / poolId, NOT player_a etc.
   const games = events
     .filter((e) => e.kind === "Resolved" || e.kind === "TimeoutResolved")
     .map((e) => {
-      const a = e.data?.player_a?.toBase58?.();
-      const b = e.data?.player_b?.toBase58?.();
+      const a = e.data?.playerA?.toBase58?.();
+      const b = e.data?.playerB?.toBase58?.();
       if (a !== me && b !== me) return null;
       const isA = a === me;
       const outcome = Number(e.data?.outcome ?? 2);
@@ -35,9 +37,9 @@ export function PlayerHistory() {
       if (outcome === 2) result = "TIE";
       else if ((outcome === 0 && isA) || (outcome === 1 && !isA)) result = "WIN";
       else result = "LOSS";
-      const paid = isA ? e.data.paid_a : e.data.paid_b;
-      const moveMine = isA ? e.data.move_a : e.data.move_b;
-      const moveOther = isA ? e.data.move_b : e.data.move_a;
+      const paid = isA ? e.data.paidA : e.data.paidB;
+      const moveMine = isA ? e.data.moveA : e.data.moveB;
+      const moveOther = isA ? e.data.moveB : e.data.moveA;
       return {
         signature: e.signature,
         timestamp: e.timestamp,
@@ -45,7 +47,7 @@ export function PlayerHistory() {
         payout: Number(paid ?? 0) / 10 ** TOKEN_DECIMALS,
         moveMine: Number(moveMine ?? 0),
         moveOther: Number(moveOther ?? 0),
-        poolId: Number(e.data?.pool_id ?? 0),
+        poolId: Number(e.data?.poolId ?? 0),
       };
     })
     .filter((g): g is NonNullable<typeof g> => g !== null);

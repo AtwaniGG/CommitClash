@@ -11,22 +11,21 @@ function shortAddr(a: string): string {
 export function Marquee() {
   const { events, loading, inQueue, matchesActive } = useLiveMetrics();
 
-  // Convert events to display strings
+  // Anchor decodes events to camelCase fields (playerA / paidB / poolId / ...).
   const items = events.flatMap((e) => {
     if (e.kind === "Resolved") {
-      const { player_a, player_b, paid_a, paid_b, burned, outcome } = e.data ?? {};
-      const winner =
-        outcome === 0 ? player_a : outcome === 1 ? player_b : null;
+      const { playerA, playerB, paidA, paidB, burned, outcome } = e.data ?? {};
+      const winner = outcome === 0 ? playerA : outcome === 1 ? playerB : null;
       return [
         {
           dot: winner ? "ok" : "acid",
           tag: "RESOLVED",
           msg: winner
             ? `${shortAddr(winner.toBase58())} +${fmtCompact(
-                Number(outcome === 0 ? paid_a : paid_b) / 1_000_000
+                Number(outcome === 0 ? paidA : paidB) / 1_000_000
               )} $RPS`
             : `TIE — both refunded ${fmtCompact(
-                (Number(paid_a) + Number(paid_b)) / 2 / 1_000_000
+                (Number(paidA) + Number(paidB)) / 2 / 1_000_000
               )}`,
         },
         {
@@ -37,23 +36,23 @@ export function Marquee() {
       ];
     }
     if (e.kind === "Matched") {
-      const { player_a, player_b, pot, pool_id } = e.data ?? {};
+      const { playerA, playerB, pot, poolId } = e.data ?? {};
       return [
         {
           dot: "magenta",
-          tag: `MATCHED // POOL_${pool_id}`,
-          msg: `${shortAddr(player_a.toBase58())} ⚔ ${shortAddr(
-            player_b.toBase58()
+          tag: `MATCHED // POOL_${poolId}`,
+          msg: `${shortAddr(playerA.toBase58())} ⚔ ${shortAddr(
+            playerB.toBase58()
           )} for ${fmtCompact(Number(pot) / 1_000_000)} $RPS`,
         },
       ];
     }
     if (e.kind === "QueueJoined") {
-      const { player, pool_id } = e.data ?? {};
+      const { player, poolId } = e.data ?? {};
       return [
         {
           dot: "cyan",
-          tag: `QUEUED // POOL_${pool_id}`,
+          tag: `QUEUED // POOL_${poolId}`,
           msg: `${shortAddr(player.toBase58())} entered the queue`,
         },
       ];
