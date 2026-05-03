@@ -32,6 +32,37 @@ export const metadata: Metadata = {
   title: "COMMITCLASH",
   description:
     "Rock. Paper. Scissors. On Solana. 85/7.5/7.5. Real burns, real streaks. Commit. Clash.",
+  metadataBase: new URL("https://commitclash.com"),
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/logo-twitter.png", sizes: "400x400", type: "image/png" },
+    ],
+    apple: { url: "/logo-twitter.png", sizes: "400x400", type: "image/png" },
+  },
+  openGraph: {
+    title: "COMMITCLASH",
+    description:
+      "Rock. Paper. Scissors. On Solana. 85/7.5/7.5. Real burns, real streaks.",
+    url: "https://commitclash.com",
+    siteName: "CommitClash",
+    images: [
+      {
+        url: "/banner-twitter.png",
+        width: 1500,
+        height: 500,
+        alt: "CommitClash — fair on-chain RPS",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "COMMITCLASH",
+    description:
+      "Rock. Paper. Scissors. On Solana. 85/7.5/7.5. Real burns, real streaks.",
+    images: ["/banner-twitter.png"],
+  },
 };
 
 export const viewport: Viewport = {

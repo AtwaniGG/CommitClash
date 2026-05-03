@@ -30,6 +30,7 @@ import {
 } from "@/lib/storage";
 import { fmtCompact } from "@/lib/format";
 import { refreshMetrics } from "@/lib/hooks";
+import { playSfx, startLoop, stopSfx } from "@/lib/sfx";
 import {
   joinPool,
   pollForMatch,
@@ -47,12 +48,25 @@ import {
   pollSolMatchUntilResolved,
   findOwnSolQueueEntry,
 } from "@/lib/program";
-import { matchPda, solMatchPda } from "@/lib/anchor";
+import { matchPda, solMatchPda, RPS_MINT } from "@/lib/anchor";
 import { getProgram } from "@/lib/anchor";
+import { getAssociatedTokenAddressSync, getAccount } from "@solana/spl-token";
 import { usePriceSnapshot } from "@/components/SolEquivalent";
 import { rpsToSol } from "@/lib/price";
+import { refreshHistory } from "@/components/PlayerHistory";
 
 type Currency = "rps" | "sol";
+
+/** Race a promise against a timeout — rejects with a recognizable error
+ *  message so the caller can decide whether to retry. */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
 
 type Phase =
   | "idle"
@@ -108,7 +122,20 @@ export function PlayPanel({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [matchedJustNow, setMatchedJustNow] = useState(false);
   const [clashDone, setClashDone] = useState(false);
-  const [currency, setCurrency] = useState<Currency>("rps");
+  // Persist currency choice across page loads so a player who's been using
+  // SOL doesn't get bounced back to RPS after a refresh and accidentally try
+  // to commit $RPS they don't have.
+  const [currency, _setCurrency] = useState<Currency>(() => {
+    if (typeof window === "undefined") return "rps";
+    const saved = window.localStorage.getItem("commitclash:currency");
+    return saved === "sol" ? "sol" : "rps";
+  });
+  const setCurrency = useCallback((c: Currency) => {
+    _setCurrency(c);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("commitclash:currency", c);
+    }
+  }, []);
 
   // Pretty-print the entry amount for either currency. Lamports are a 9-decimal
   // unit — show up to 3 decimals (0.015 SOL stays readable).
@@ -138,6 +165,22 @@ export function PlayPanel({
   // Synchronous re-entry lock so a double-click can't submit twice.
   // (React state updates are async — useRef gives us a sync guard.)
   const submittingRef = useRef(false);
+  // Stash the in-flight match info so a manual "RETRY REVEAL" button can
+  // re-fire the reveal tx without restarting the whole join flow.
+  const inflightRef = useRef<{
+    session: Keypair;
+    moveByte: number;
+    nonce: Uint8Array;
+    matchInfo: {
+      matchId: bigint;
+      playerA: PublicKey;
+      playerB: PublicKey;
+      imSideA: boolean;
+    };
+    isSol: boolean;
+    commitmentHex: string;
+  } | null>(null);
+  const [showManualReveal, setShowManualReveal] = useState(false);
 
   // Pull live streak whenever wallet connects
   useEffect(() => {
@@ -157,7 +200,43 @@ export function PlayPanel({
     // Pre-flight checks (skip in demo/sim modes)
     if (programDeployed) {
       try {
-        // 1. Do I already have a pending queue entry in EITHER currency?
+        // 1. Do I have enough balance? Catch this BEFORE the wallet popup so
+        //    the user gets a clear "go get more $RPS" message instead of a
+        //    raw simulation-failed error from the SPL token program.
+        if (currency === "rps") {
+          const ata = getAssociatedTokenAddressSync(RPS_MINT, publicKey);
+          let rpsBalance = 0n;
+          try {
+            const acc = await getAccount(connection, ata);
+            rpsBalance = acc.amount;
+          } catch {
+            // ATA doesn't exist yet → balance is 0
+          }
+          const need = BigInt(entryAmount) * 1_000_000n; // 6 decimals
+          if (rpsBalance < need) {
+            const have = Number(rpsBalance) / 1_000_000;
+            submittingRef.current = false;
+            setErrorMsg(
+              `Not enough $RPS — you have ${have.toLocaleString()} but this pool needs ${entryAmount.toLocaleString()}. Get more $RPS, or switch to SOL.`
+            );
+            return;
+          }
+        } else {
+          // SOL pool: check wallet has entry + ~0.005 SOL buffer for fees + session funding
+          const need = Number(solEntryLamports ?? 0n) + 5_000_000;
+          const balance = await connection.getBalance(publicKey);
+          if (balance < need) {
+            submittingRef.current = false;
+            const haveSol = (balance / 1e9).toFixed(3);
+            const needSol = (Number(solEntryLamports ?? 0n) / 1e9).toFixed(3);
+            setErrorMsg(
+              `Not enough SOL — you have ${haveSol} but this pool needs at least ${needSol} (plus a tiny fee buffer).`
+            );
+            return;
+          }
+        }
+
+        // 2. Do I already have a pending queue entry in EITHER currency?
         const findOwn =
           currency === "sol" ? findOwnSolQueueEntry : findOwnQueueEntry;
         const own = await findOwn(connection, publicKey);
@@ -169,7 +248,7 @@ export function PlayPanel({
           return;
         }
 
-        // 2. Is the head entry stale? Same logic for either currency, but
+        // 3. Is the head entry stale? Same logic for either currency, but
         //    only the RPS getQueueHead helper exists today — non-blocking.
         if (currency === "rps") {
           const head = await getQueueHead(connection, poolId);
@@ -284,18 +363,63 @@ export function PlayPanel({
       }
 
       // 3. Auto-reveal via session key (no wallet popup)
-      setPhase("revealing");
-      const revealFn = isSol ? revealSolMove : revealMove;
-      await revealFn({
-        connection,
-        sessionKp: session,
-        poolId,
-        matchId: matchInfo.matchId,
-        move: moveByte,
+      // Stash the in-flight info so a manual retry can re-fire just the reveal.
+      inflightRef.current = {
+        session,
+        moveByte,
         nonce,
-        playerA: matchInfo.playerA,
-        playerB: matchInfo.playerB,
-      });
+        matchInfo,
+        isSol,
+        commitmentHex: bytesToHex(commitment),
+      };
+
+      setPhase("revealing");
+      setShowManualReveal(false);
+      const revealFn = isSol ? revealSolMove : revealMove;
+
+      // Wrap reveal with a 25s timeout + 1 silent retry. confirmTransaction
+      // can hang indefinitely if the WebSocket subscription drops; the retry
+      // path uses a fresh blockhash so it bypasses cached-state issues.
+      const tryReveal = async () => {
+        await withTimeout(
+          revealFn({
+            connection,
+            sessionKp: session,
+            poolId,
+            matchId: matchInfo.matchId,
+            move: moveByte,
+            nonce,
+            playerA: matchInfo.playerA,
+            playerB: matchInfo.playerB,
+          }),
+          25_000,
+          "reveal"
+        );
+      };
+      try {
+        await tryReveal();
+      } catch (firstErr: any) {
+        const m = (firstErr?.message ?? String(firstErr)).toLowerCase();
+        if (m.includes("already been processed") || m.includes("alreadyrevealed")) {
+          // First reveal actually landed — proceed to poll
+          console.warn("First reveal landed despite hang; continuing to poll");
+        } else {
+          console.warn("First reveal failed, retrying once:", firstErr);
+          await new Promise((r) => setTimeout(r, 800));
+          try {
+            await tryReveal();
+          } catch (secondErr: any) {
+            // Both attempts failed — surface manual recovery UI
+            const m2 = (secondErr?.message ?? "").toLowerCase();
+            if (!m2.includes("already been processed") && !m2.includes("alreadyrevealed")) {
+              setShowManualReveal(true);
+              throw new Error(
+                "Reveal failed twice — tap MANUAL REVEAL to try again. Funds are safe; the match will time out in ~10 min if you walk away."
+              );
+            }
+          }
+        }
+      }
 
       // 4. Poll match for both reveals → resolved state
       const pollResolveFn = isSol ? pollSolMatchUntilResolved : pollMatchUntilResolved;
@@ -303,14 +427,27 @@ export function PlayPanel({
         connection,
         poolId,
         matchInfo.matchId,
-        matchInfo.imSideA
+        matchInfo.imSideA,
+        45_000, // shorter than the on-chain reveal timeout, gives user a clear UI signal
       );
-      if (otherMoveByte === null) throw new Error("Opponent timeout");
+      if (otherMoveByte === null) {
+        // Our reveal landed but opponent hasn't yet. Keep the inflight ref so
+        // user can hit RETRY (which just re-polls — our reveal is on chain).
+        setShowManualReveal(true);
+        throw new Error(
+          "Opponent hasn't revealed yet. Tap RETRY to keep waiting, or walk away — the on-chain timeout will refund you in ~10 min."
+        );
+      }
       const otherMoveName: Move =
         otherMoveByte === 1 ? "rock" : otherMoveByte === 2 ? "paper" : "scissors";
       setOpponentMove(otherMoveName);
       setPhase("resolved");
       refreshMetrics();
+      refreshHistory(); // immediately repopulate the My History list
+
+      // Clear the inflight ref — match is settled
+      inflightRef.current = null;
+      setShowManualReveal(false);
 
       // Refresh streak — read whichever currency we just played
       const statsFn = isSol ? fetchSolPlayerStats : fetchPlayerStats;
@@ -320,18 +457,109 @@ export function PlayPanel({
     } catch (err: any) {
       console.error(err);
       const msg = err?.message ?? String(err);
+      const lower = msg.toLowerCase();
       // "Already processed" means our tx hit chain twice — usually because of
-      // a network retry. Don't surface it as a hard error, the first attempt succeeded.
-      if (msg.toLowerCase().includes("already been processed")) {
+      // a network retry. Don't surface it as a hard error.
+      if (lower.includes("already been processed")) {
         console.warn("Duplicate tx submission — first one likely succeeded");
+      } else if (lower.includes("insufficient funds") || lower.includes("0x1")) {
+        // SPL token InsufficientFunds → 0x1 from the token program
+        if (currency === "rps") {
+          setErrorMsg(
+            `Not enough $RPS — this pool needs ${entryAmount.toLocaleString()}. Get more $RPS, or switch to SOL.`
+          );
+        } else {
+          const needSol = (Number(solEntryLamports ?? 0n) / 1e9).toFixed(3);
+          setErrorMsg(`Not enough SOL — this pool needs at least ${needSol}.`);
+        }
+      } else if (lower.includes("user rejected") || lower.includes("rejected the request")) {
+        setErrorMsg("You rejected the wallet popup.");
+      } else if (lower.includes("blockhash not found") || lower.includes("blockheight")) {
+        setErrorMsg("Network blockhash expired. Try again.");
+      } else if (lower.includes("queueempty") || lower.includes("queuenotempty") || lower.includes("constraintseeds")) {
+        setErrorMsg("Queue state shifted — try again.");
       } else {
-        setErrorMsg(msg);
+        // Trim the dump — surface only the first sentence so the UI box
+        // doesn't fill with raw program logs.
+        const firstSentence = msg.split(".")[0].slice(0, 200);
+        setErrorMsg(firstSentence);
       }
       setPhase("idle");
     } finally {
       submittingRef.current = false;
     }
-  }, [publicKey, anchorWallet, selected, poolId, programDeployed, connection, currency]);
+  }, [publicKey, anchorWallet, selected, poolId, programDeployed, connection, currency, entryAmount, solEntryLamports]);
+
+  /** Manual reveal escape hatch — re-fires the reveal tx using the same
+   *  session key + nonce + commit, then resumes polling. Surfaced via a
+   *  button when the auto-reveal hangs or when the opponent stalls. */
+  const manualRetryReveal = useCallback(async () => {
+    const inflight = inflightRef.current;
+    if (!inflight || !publicKey) return;
+    setShowManualReveal(false);
+    setErrorMsg(null);
+    setPhase("revealing");
+
+    const { session, moveByte, nonce, matchInfo, isSol, commitmentHex } = inflight;
+    const revealFn = isSol ? revealSolMove : revealMove;
+    const pollResolveFn = isSol ? pollSolMatchUntilResolved : pollMatchUntilResolved;
+
+    try {
+      // Try one more reveal — silently absorb "already revealed" since that
+      // means our prior attempt actually landed.
+      try {
+        await withTimeout(
+          revealFn({
+            connection,
+            sessionKp: session,
+            poolId,
+            matchId: matchInfo.matchId,
+            move: moveByte,
+            nonce,
+            playerA: matchInfo.playerA,
+            playerB: matchInfo.playerB,
+          }),
+          25_000,
+          "manual reveal"
+        );
+      } catch (err: any) {
+        const m = (err?.message ?? String(err)).toLowerCase();
+        if (!m.includes("already been processed") && !m.includes("alreadyrevealed")) {
+          throw err;
+        }
+      }
+
+      // Resume polling for opponent's reveal
+      const otherMoveByte = await pollResolveFn(
+        connection,
+        poolId,
+        matchInfo.matchId,
+        matchInfo.imSideA,
+        45_000
+      );
+      if (otherMoveByte === null) {
+        setShowManualReveal(true);
+        throw new Error(
+          "Opponent still hasn't revealed. Tap RETRY again, or wait for the on-chain timeout (~10 min)."
+        );
+      }
+      const otherMoveName: Move =
+        otherMoveByte === 1 ? "rock" : otherMoveByte === 2 ? "paper" : "scissors";
+      setOpponentMove(otherMoveName);
+      setPhase("resolved");
+      refreshMetrics();
+      refreshHistory();
+      inflightRef.current = null;
+
+      const statsFn = isSol ? fetchSolPlayerStats : fetchPlayerStats;
+      const stats = await statsFn(connection, publicKey);
+      if (stats) setStreak(stats.currentStreak);
+      clearPendingPlay(publicKey.toBase58(), commitmentHex);
+    } catch (err: any) {
+      console.error("Manual reveal failed:", err);
+      setErrorMsg(err?.message ?? String(err));
+    }
+  }, [publicKey, connection, poolId]);
 
   function reset() {
     setPhase("idle");
@@ -345,6 +573,28 @@ export function PlayPanel({
   useEffect(() => {
     if (phase === "matched") setMatchedJustNow(true);
   }, [phase]);
+
+  // ── SFX driven by phase + outcome ────────────────────────────────────
+  // - "revealing" phase loops the waiting/anticipation sound until it ends.
+  // - "resolved" phase plays a one-shot win or loss sound based on outcome.
+  // - Any other phase silences the waiting loop.
+  useEffect(() => {
+    if (phase === "revealing") {
+      startLoop("waiting");
+    } else {
+      stopSfx("waiting");
+    }
+    if (phase === "resolved" && selected && opponentMove) {
+      const outcome = deriveOutcome(selected, opponentMove);
+      if (outcome === "win") playSfx("win");
+      else if (outcome === "loss") playSfx("loss");
+      // Tie: stay silent (no loss sting, but no celebration either)
+    }
+    return () => {
+      // Defensive: if the component unmounts mid-reveal, kill the loop
+      if (phase === "revealing") stopSfx("waiting");
+    };
+  }, [phase, selected, opponentMove]);
 
   // ── Resume-on-refresh ──
   // If the user already has an on-chain queue entry AND localStorage has the
@@ -445,6 +695,8 @@ export function PlayPanel({
           otherMoveByte === 1 ? "rock" : otherMoveByte === 2 ? "paper" : "scissors";
         setOpponentMove(otherMoveName);
         setPhase("resolved");
+        refreshMetrics();
+        refreshHistory();
 
         const statsFn = isSol ? fetchSolPlayerStats : fetchPlayerStats;
         const stats = await statsFn(connection, me);
@@ -621,6 +873,17 @@ export function PlayPanel({
                 {phase === "revealing" &&
                   "▶ KECCAK256 VERIFIED. RESOLVING ON-CHAIN…"}
               </div>
+
+              {/* Manual reveal escape hatch — appears when the auto-reveal
+                  flow times out twice or when opponent stalls. */}
+              {showManualReveal && (
+                <button
+                  onClick={manualRetryReveal}
+                  className="pixel-btn pixel-btn--magenta w-full text-pixel-md py-3 mt-2"
+                >
+                  ▶ MANUAL REVEAL
+                </button>
+              )}
             </motion.div>
           )}
 

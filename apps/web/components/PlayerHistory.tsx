@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey, Connection } from "@solana/web3.js";
 import { fmtCompact } from "@/lib/format";
 import { fetchPlayerHistory } from "@/lib/program";
 import { PixelFrame } from "./ui/PixelFrame";
@@ -10,7 +11,7 @@ interface Game {
   signature: string;
   timestamp: number;
   result: "WIN" | "LOSS" | "TIE";
-  payout: number;             // either RPS units OR SOL units, depending on currency
+  payout: number;
   moveMine: number;
   moveOther: number;
   poolId: number;
@@ -30,47 +31,92 @@ function moveName(n: number): string {
   return n === 1 ? "ROCK" : n === 2 ? "PAPER" : n === 3 ? "SCISSORS" : "?";
 }
 
+// ─── Module-level singleton: shared cache + manual refresh hook ───────────
+// PlayPanel imports `refreshHistory()` and calls it the moment a match
+// resolves on chain. That way the user sees their just-played game immediately
+// instead of waiting up to 3 min for the next interval tick.
+let __conn: Connection | null = null;
+let __player: PublicKey | null = null;
+let __cache: Game[] = [];
+let __loading = true;
+const __subs = new Set<(games: Game[], loading: boolean) => void>();
+let __ticking = false;
+
+async function runFetch() {
+  if (!__conn || !__player || __ticking) return;
+  __ticking = true;
+  try {
+    const history = (await fetchPlayerHistory(__conn, __player, 50)) as Game[];
+    __cache = history;
+    __loading = false;
+    __subs.forEach((cb) => cb(__cache, __loading));
+  } catch (err) {
+    console.warn("[PlayerHistory] fetch failed:", err);
+    __loading = false;
+    __subs.forEach((cb) => cb(__cache, __loading));
+  } finally {
+    __ticking = false;
+  }
+}
+
+/** Call this after a match resolves (or any chain action that may have added
+ *  a new game) to push a fresh fetch immediately. Singleton-debounced via
+ *  `__ticking`, so spamming it is harmless. */
+export function refreshHistory() {
+  runFetch();
+}
+
 export function PlayerHistory() {
   const { publicKey } = useWallet();
   const { connection } = useConnection();
-  const [games, setGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [games, setGames] = useState<Game[]>(__cache);
+  const [loading, setLoading] = useState(__loading);
+
+  // Keep module-level connection + player refs current so refreshHistory()
+  // always uses the latest values regardless of which component triggered it.
+  useEffect(() => {
+    __conn = connection;
+    __player = publicKey ?? null;
+  }, [connection, publicKey]);
 
   useEffect(() => {
     if (!publicKey) {
+      __cache = [];
+      __loading = false;
       setGames([]);
       setLoading(false);
       return;
     }
-    const me = publicKey; // capture non-null
+    const cb = (g: Game[], l: boolean) => {
+      setGames(g);
+      setLoading(l);
+    };
+    __subs.add(cb);
+    setGames(__cache);
+    setLoading(__loading);
 
-    let cancelled = false;
-    let timer: ReturnType<typeof setInterval>;
+    // Kick off an immediate fetch on mount / wallet change
+    runFetch();
 
-    async function load() {
-      try {
-        // Scan a narrower window (50 sigs) and refresh less often — full scans
-        // burn ~30 RPC requests and were a major contributor to 429 bursts.
-        const history = await fetchPlayerHistory(connection, me, 50);
-        if (!cancelled) {
-          setGames(history);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.warn("[PlayerHistory] fetch failed:", err);
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    // Refresh every 3 min, only when tab is visible
-    timer = setInterval(() => {
-      if (typeof document === "undefined" || !document.hidden) load();
+    // Slow background refresh as a safety net (3 min, visibility-paused)
+    const timer = setInterval(() => {
+      if (typeof document === "undefined" || !document.hidden) runFetch();
     }, 180_000);
 
+    // Refresh whenever the tab becomes visible again
+    const onVisibility = () => {
+      if (typeof document !== "undefined" && !document.hidden) runFetch();
+    };
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onVisibility);
+    }
+
     return () => {
-      cancelled = true;
+      __subs.delete(cb);
       clearInterval(timer);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibility);
+      }
     };
   }, [publicKey, connection]);
 
