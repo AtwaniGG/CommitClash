@@ -173,22 +173,23 @@ export function WalletRecovery() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -50, opacity: 0 }}
           transition={{ duration: 0.4 }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-[120] pointer-events-auto"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-[120] pointer-events-auto w-[min(92vw,28rem)]"
         >
           <div
-            className="px-5 py-3 bg-bg-base border border-ok shadow-glow-ok flex items-center gap-3"
+            className="px-4 py-3 bg-bg-base border border-ok shadow-glow-ok flex flex-wrap items-center gap-x-3 gap-y-1"
             style={{
               clipPath:
                 "polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px))",
             }}
           >
-            <span className="text-pixel-md glow-ok">▶ STAKE RECOVERED</span>
-            <span className="text-pixel-xs text-ink-mute">
+            <span className="text-pixel-sm sm:text-pixel-md glow-ok">▶ STAKE RECOVERED</span>
+            <span className="text-pixel-xs text-ink-mute basis-full sm:basis-auto">
               {recoveredAmount.toLocaleString()} $RPS refunded
             </span>
             <button
               onClick={() => setRecoveredAmount(null)}
-              className="text-pixel-xs text-ink-dim hover:text-ink ml-2"
+              className="text-pixel-xs text-ink-dim hover:text-ink ml-auto"
+              aria-label="Dismiss"
             >
               ✕
             </button>
@@ -203,40 +204,43 @@ export function WalletRecovery() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -50, opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed top-20 left-1/2 -translate-x-1/2 z-[110] pointer-events-auto max-w-xl w-[92%]"
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-[110] pointer-events-auto w-[min(92vw,36rem)]"
         >
           <div
-            className="px-5 py-3 bg-bg-base border border-acid shadow-glow-acid"
+            className="px-4 py-3 bg-bg-base border border-acid shadow-glow-acid"
             style={{
               clipPath:
                 "polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px))",
             }}
           >
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0 pr-6 sm:pr-0">
                 <div className="text-pixel-sm glow-acid">▶ PENDING STAKE DETECTED</div>
-                <div className="text-pixel-xs text-ink-mute mt-1 truncate">
+                <div className="text-pixel-xs text-ink-mute mt-1 leading-relaxed">
                   {cancelable
                     ? "Past timeout — click to refund 30,000 $RPS to your wallet."
                     : `Cancel available in ${Math.ceil(remainingSec)}s. Or wait for an opponent to match.`}
                 </div>
                 {error && (
-                  <div className="text-pixel-xs text-burn mt-1">⚠ {error}</div>
+                  <div className="text-pixel-xs text-burn mt-1 break-words">⚠ {error}</div>
                 )}
               </div>
-              <button
-                onClick={cancelNow}
-                disabled={!cancelable || working}
-                className="pixel-btn pixel-btn--acid shrink-0"
-              >
-                {working ? "..." : cancelable ? "▶ REFUND" : `${Math.ceil(remainingSec)}s`}
-              </button>
-              <button
-                onClick={() => setPending(null)}
-                className="text-pixel-xs text-ink-dim hover:text-ink"
-              >
-                ✕
-              </button>
+              <div className="flex items-center justify-end gap-3 shrink-0">
+                <button
+                  onClick={cancelNow}
+                  disabled={!cancelable || working}
+                  className="pixel-btn pixel-btn--acid"
+                >
+                  {working ? "..." : cancelable ? "▶ REFUND" : `${Math.ceil(remainingSec)}s`}
+                </button>
+                <button
+                  onClick={() => setPending(null)}
+                  className="text-pixel-xs text-ink-dim hover:text-ink"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
