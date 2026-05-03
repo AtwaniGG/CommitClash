@@ -52,7 +52,7 @@ export default function WhitepaperPage() {
           FIFO matchmaking. Session-key auto-reveal. Real burns. Zero house.
         </p>
         <div className="text-pixel-xs text-ink-mute pt-2">
-          REV 2026-05-01 · DEPLOYED · DEVNET
+          REV 2026-05-03 · DEPLOYED · DEVNET · AUDIT-PATCHED
         </div>
       </div>
 
@@ -152,11 +152,26 @@ export default function WhitepaperPage() {
           </table>
         </PixelFrame>
         <p className="font-body text-xl text-ink-dim leading-relaxed">
-          State is mutated by eight instructions. Two are admin-only
+          State is mutated by fifteen instructions across two parallel
+          surfaces: eight on the $RPS-token side
           (<span className="font-mono">initialize</span>,{" "}
-          <span className="font-mono">initialize_pool</span>). Five are
-          player-facing. One is permissionless and serves as the
-          liveness escape valve for stale queues and forfeited matches.
+          <span className="font-mono">initialize_pool</span>,{" "}
+          <span className="font-mono">join_solo</span>,{" "}
+          <span className="font-mono">join_and_match</span>,{" "}
+          <span className="font-mono">reveal</span>,{" "}
+          <span className="font-mono">resolve_timeout</span>,{" "}
+          <span className="font-mono">cancel_queue_entry</span>,{" "}
+          <span className="font-mono">admin_update_config</span>) and seven
+          mirrored on the SOL parallel world for native-SOL pools
+          (<span className="font-mono">initialize_sol_config</span>,{" "}
+          <span className="font-mono">initialize_sol_pool</span>,{" "}
+          <span className="font-mono">join_sol_solo</span>,{" "}
+          <span className="font-mono">join_sol_and_match</span>,{" "}
+          <span className="font-mono">reveal_sol</span>,{" "}
+          <span className="font-mono">resolve_timeout_sol</span>,{" "}
+          <span className="font-mono">cancel_sol_queue_entry</span>). Both
+          surfaces share the same commit-reveal logic, fee splits, and
+          PlayerStats counters.
         </p>
       </section>
 
@@ -441,8 +456,21 @@ export default function WhitepaperPage() {
               flag.
             </li>
             <li>
+              <span className="text-pixel-xs text-burn mr-2">[H-SOL-1]</span>
+              <span className="text-ink">SolVault rent-exempt drain.</span>{" "}
+              The lamport-vault payout helper{" "}
+              <span className="font-mono">pay_lamports</span> in the SOL
+              parallel world deducted from the vault PDA without enforcing
+              the rent-exempt minimum, allowing a sequence of payouts to
+              drop the program-owned account below its rent floor and risk
+              eventual purge. Patched: helper now reads{" "}
+              <span className="font-mono">Rent::minimum_balance(data_len)</span>{" "}
+              and rejects any transfer that would leave the vault below it.
+              Validated and redeployed.
+            </li>
+            <li>
               <span className="text-pixel-xs text-cyan mr-2">[INFO]</span>
-              <span className="text-ink">Move secrecy, account substitution, replay, foreign stat tampering, queue griefing, CPI signer seeds, tie-streak invariance, dust math at 30k tier — all verified secure.</span>
+              <span className="text-ink">Move secrecy, account substitution, replay, foreign stat tampering, queue griefing, CPI signer seeds, tie-streak invariance, dust math at 30k tier — all verified secure. 200-game stress test post-patch: 198/200 success rate, 2.64s median reveal time end-to-end.</span>
             </li>
           </ul>
         </PixelFrame>
@@ -464,7 +492,15 @@ export default function WhitepaperPage() {
               <span className="text-pixel-xs text-ok mr-2">[DONE]</span>
               <span className="text-ink">Frontend</span> — cyberpunk UI,
               wallet integration, session-key flow, live event feed,
-              real-time stats.
+              real-time PlayerStats, phase-driven SFX (waiting/win/loss),
+              singleton-poller history with manual-reveal fallback,
+              pre-launch preview-mode gate.
+            </li>
+            <li>
+              <span className="text-pixel-xs text-ok mr-2">[DONE]</span>
+              <span className="text-ink">SOL pools</span> — full parallel
+              instruction surface for native-SOL entry, audited
+              (H-SOL-1 patched), deployed to devnet.
             </li>
             <li>
               <span className="text-pixel-xs text-acid mr-2">[NEXT]</span>
@@ -474,14 +510,9 @@ export default function WhitepaperPage() {
             </li>
             <li>
               <span className="text-pixel-xs text-cyan mr-2">[Q3]</span>
-              <span className="text-ink">SOL pools</span> — alternative
-              entry currency for low-friction onboarding. Manual
-              treasury-funded $RPS buybacks.
-            </li>
-            <li>
-              <span className="text-pixel-xs text-cyan mr-2">[Q4]</span>
               <span className="text-ink">Higher tiers</span> — POOL_100K,
-              POOL_1M opened as $RPS price stabilizes.
+              POOL_1M opened as $RPS price stabilizes; treasury-funded
+              $RPS buybacks from accumulated SOL fees.
             </li>
             <li>
               <span className="text-pixel-xs text-magenta mr-2">[FUTURE]</span>
@@ -582,11 +613,15 @@ export default function WhitepaperPage() {
           fees still apply.
         </Faq>
         <Faq q="Is there an audit?">
-          Pre-launch independent review found one HIGH-severity griefing
-          attack and one MEDIUM-severity admin operational concern. Both
-          were patched and the program upgraded. See SECTION 09 for
-          details. A third-party audit by a security firm is on the
-          roadmap before mainnet.
+          Pre-launch independent review across both surfaces found one
+          HIGH-severity griefing attack on the $RPS surface, one
+          MEDIUM-severity admin operational concern, and one HIGH-severity
+          rent-exempt drain on the SOL parallel world. All three were
+          patched and the program upgraded. A 200-game stress test on the
+          patched build confirmed 198/200 success rate with a 2.64s
+          median end-to-end reveal time. See SECTION 09 for details. A
+          third-party audit by a security firm is on the roadmap before
+          mainnet.
         </Faq>
       </section>
 

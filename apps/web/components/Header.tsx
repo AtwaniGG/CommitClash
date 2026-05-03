@@ -14,6 +14,9 @@ const NAV: { href: string; label: string }[] = [
   { href: "/whitepaper", label: "WHITEPAPER" },
 ];
 
+// TODO: replace with the deployed pump.fun coin URL once the token is live.
+const PUMP_FUN_URL = "https://pump.fun";
+
 import { usePreviewMode } from "@/lib/previewMode";
 
 export function Header() {
@@ -68,6 +71,21 @@ export function Header() {
             <Stat label="LIVE MATCH" value={matchDisplay} tone="magenta" />
           </div>
           <WalletButton />
+          <a
+            href={PUMP_FUN_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View $RPS on pump.fun"
+            className="ml-6 shrink-0 transition-transform hover:scale-110"
+          >
+            <img
+              src="/coin-spin.gif"
+              alt="$RPS"
+              width={40}
+              height={40}
+              className="pixelated drop-shadow-[0_0_8px_rgba(255,157,16,0.5)]"
+            />
+          </a>
         </div>
       </div>
     </header>
