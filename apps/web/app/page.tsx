@@ -3,6 +3,7 @@ import { PixelFrame } from "@/components/ui/PixelFrame";
 import { MoveSprite } from "@/components/sprites/MoveSprite";
 import { LiveStatsGrid } from "@/components/LiveStatsGrid";
 import { SolEquivalent } from "@/components/SolEquivalent";
+import { HeroCta, PoolJoinCta, PoolStatCells } from "@/components/LobbyCta";
 
 const POOLS = [
   {
@@ -77,9 +78,7 @@ export default function Lobby() {
             <span className="glow-burn">7.5% burns</span> forever. <span className="glow-acid">7.5%</span> to treasury. No house, no admin override, no edge.
           </p>
           <div className="flex flex-wrap gap-3">
-            <Link href="/play/0" className="pixel-btn pixel-btn--magenta">
-              ▶ ENTER POOL_30K
-            </Link>
+            <HeroCta />
             <Link href="/stats" className="pixel-btn">
               VIEW STATS
             </Link>
@@ -284,18 +283,13 @@ function PoolCard({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 border-t border-edge pt-3">
-          <Cell label="QUEUE" value={pool.queue_length === 0 ? "0 — SOLO" : `${pool.queue_length} ⇝`} />
-          <Cell label="ROUNDS" value={pool.rounds.toLocaleString()} />
-          <Cell label="BURNED" value={fmtCompact(pool.burned)} tone="burn" />
-        </div>
+        <PoolStatCells
+          queueLength={pool.queue_length}
+          rounds={pool.rounds}
+          burned={pool.burned}
+        />
 
-        <Link
-          href={`/play/${pool.id}`}
-          className="pixel-btn pixel-btn--magenta w-full"
-        >
-          {pool.queue_length > 0 ? "▶ JOIN MATCH" : "▶ START QUEUE"}
-        </Link>
+        <PoolJoinCta poolId={pool.id} hasQueue={pool.queue_length > 0} />
       </div>
     </PixelFrame>
   );

@@ -44,14 +44,21 @@ export function playSfx(name: SfxName) {
   }
 }
 
-/** Start a looping sound (e.g. the reveal/waiting drone). */
-export function startLoop(name: SfxName) {
+// Track auto-stop timers so a re-trigger cancels the previous one
+const autoStopTimers: Partial<Record<SfxName, ReturnType<typeof setTimeout>>> = {};
+
+/** Start a looping sound, but auto-stop after `maxDurationMs` so the
+ *  reveal/waiting bed doesn't drag on past the actual reveal. Default
+ *  cap is 2.5s. */
+export function startLoop(name: SfxName, maxDurationMs = 2500) {
   const a = get(name);
   if (!a) return;
   try {
     a.loop = true;
     a.currentTime = 0;
     void a.play();
+    if (autoStopTimers[name]) clearTimeout(autoStopTimers[name]!);
+    autoStopTimers[name] = setTimeout(() => stopSfx(name), maxDurationMs);
   } catch {
     // ignored
   }
@@ -61,6 +68,10 @@ export function startLoop(name: SfxName) {
 export function stopSfx(name: SfxName) {
   const a = cache[name];
   if (!a) return;
+  if (autoStopTimers[name]) {
+    clearTimeout(autoStopTimers[name]!);
+    delete autoStopTimers[name];
+  }
   try {
     a.pause();
     a.currentTime = 0;

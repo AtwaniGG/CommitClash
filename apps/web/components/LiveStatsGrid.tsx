@@ -2,11 +2,31 @@
 
 import { useGlobalStats } from "@/lib/hooks";
 import { fmtCompact } from "@/lib/format";
+import { usePreviewMode } from "@/lib/previewMode";
 
 const TOTAL_SUPPLY = 1_000_000_000;
 
 export function LiveStatsGrid() {
   const stats = useGlobalStats();
+  const previewMode = usePreviewMode();
+
+  // In preview mode (pre-launch) we hard-zero the stats — devnet activity
+  // shouldn't bleed into the public marketing surface.
+  if (previewMode) {
+    return (
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Tile label="ROUNDS PLAYED" value="0" />
+        <Tile label="$RPS BURNED" value="0" tone="burn" />
+        <Tile label="TREASURY" value="0" tone="acid" />
+        <Tile
+          label="SUPPLY REMAINING"
+          value="100.00%"
+          sub={`${fmtCompact(TOTAL_SUPPLY)} / 1B`}
+          tone="ok"
+        />
+      </section>
+    );
+  }
 
   const supplyTokens = stats ? Number(stats.supply) / 10 ** stats.decimals : null;
   const burnedTokens = stats ? Number(stats.totalBurned) / 10 ** stats.decimals : null;

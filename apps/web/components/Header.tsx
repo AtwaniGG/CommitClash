@@ -11,12 +11,18 @@ const NAV: { href: string; label: string }[] = [
   { href: "/", label: "LOBBY" },
   { href: "/me", label: "ME" },
   { href: "/stats", label: "STATS" },
-  { href: "/whitepaper", label: "PAPER" },
+  { href: "/whitepaper", label: "WHITEPAPER" },
 ];
+
+import { usePreviewMode } from "@/lib/previewMode";
 
 export function Header() {
   const pathname = usePathname();
   const { inQueue, matchesActive, loading } = useLiveMetrics();
+  const previewMode = usePreviewMode();
+  // In preview mode, show static zeros instead of devnet activity
+  const queueDisplay = previewMode ? "0" : loading ? "—" : `${inQueue}`;
+  const matchDisplay = previewMode ? "0" : loading ? "—" : `${matchesActive}`;
 
   return (
     <header className="relative z-50 border-b border-edge bg-bg-deep/90 backdrop-blur-sm">
@@ -57,9 +63,9 @@ export function Header() {
           <div className="hidden md:flex items-center gap-3 border border-edge px-3 py-1.5">
             <OnlineCounter />
             <span className="text-edge">|</span>
-            <Stat label="IN QUEUE" value={loading ? "—" : `${inQueue}`} tone="cyan" />
+            <Stat label="IN QUEUE" value={queueDisplay} tone="cyan" />
             <span className="text-edge">|</span>
-            <Stat label="LIVE MATCH" value={loading ? "—" : `${matchesActive}`} tone="magenta" />
+            <Stat label="LIVE MATCH" value={matchDisplay} tone="magenta" />
           </div>
           <WalletButton />
         </div>
