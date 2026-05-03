@@ -120,7 +120,7 @@ export function Marquee() {
             ? {
                 dot: "magenta",
                 tag: "LIVE",
-                href: "https://pump.fun/coin/CYQ3wHfoc6WsFvf7HUoceagenw5Xfy9X824svazapump",
+                href: "https://pump.fun/coin/CHRxRqNLWQLzkA5jFGSvCLNJfNNYnH8t5LR2zdpKpump",
                 msg: "▶ $RPS LIVE NOW ON PUMP.FUN — CLICK TO BUY",
               }
             : {
