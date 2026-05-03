@@ -286,8 +286,9 @@ fn do_resolve(
 }
 
 /// Move `amount` lamports from a program-owned PDA to any account.
-/// Caller must ensure `from` is owned by this program AND that `from` retains
-/// its rent-exempt minimum after the deduction.
+/// Enforces that `from` retains its rent-exempt minimum after the deduction
+/// — protects against accounting drift or stray-deposit math putting the
+/// vault into a garbage-collectable state.
 pub fn pay_lamports<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,
@@ -304,6 +305,9 @@ pub fn pay_lamports<'info>(
     let new_to = to_lamports
         .checked_add(amount)
         .ok_or(RpsError::MathOverflow)?;
+    // Guard against ever dropping the source PDA below rent-exempt minimum.
+    let min_balance = Rent::get()?.minimum_balance(from.data_len());
+    require!(new_from >= min_balance, RpsError::MathOverflow);
     **from.try_borrow_mut_lamports()? = new_from;
     **to.try_borrow_mut_lamports()? = new_to;
     Ok(())
