@@ -14,8 +14,8 @@ const NAV: { href: string; label: string }[] = [
   { href: "/whitepaper", label: "WHITEPAPER" },
 ];
 
-// TODO: replace with the deployed pump.fun coin URL once the token is live.
-const PUMP_FUN_URL = "https://pump.fun";
+const PUMP_FUN_URL =
+  "https://pump.fun/coin/CYQ3wHfoc6WsFvf7HUoceagenw5Xfy9X824svazapump";
 
 import { usePreviewMode } from "@/lib/previewMode";
 

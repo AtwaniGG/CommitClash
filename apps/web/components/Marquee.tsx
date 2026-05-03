@@ -108,17 +108,26 @@ export function Marquee() {
     }
   });
 
+  // PRE-LAUNCH: drop the live-stats fallback in favor of a clickable
+  // "live on pump.fun" call-to-action. When the games go live, flip
+  // previewMode off and the original IN QUEUE / ACTIVE MATCHES status
+  // line returns automatically. Keep this branch intact — do not delete.
   const display =
     items.length > 0
       ? items
       : [
-          {
-            dot: "idle",
-            tag: "STATUS",
-            msg: previewMode
-              ? "0 in queue · 0 active matches · awaiting mainnet launch"
-              : `${inQueue} in queue · ${matchesActive} active matches · awaiting first event`,
-          },
+          previewMode
+            ? {
+                dot: "magenta",
+                tag: "LIVE",
+                href: "https://pump.fun/coin/CYQ3wHfoc6WsFvf7HUoceagenw5Xfy9X824svazapump",
+                msg: "▶ $RPS LIVE NOW ON PUMP.FUN — CLICK TO BUY",
+              }
+            : {
+                dot: "idle",
+                tag: "STATUS",
+                msg: `${inQueue} in queue · ${matchesActive} active matches · awaiting first event`,
+              },
         ];
 
   // For a seamless loop the track must be at least 2× the viewport width.
@@ -128,29 +137,43 @@ export function Marquee() {
   return (
     <div className="marquee">
       <div className="marquee__track">
-        {tracks.map((item, i) => (
-          <span key={i} className="text-pixel-xs flex items-center gap-3 px-4">
-            <Dot variant={item.dot as any} />
-            <span className="text-ink-mute">[{item.tag}]</span>
-            <span
-              className={
-                item.dot === "ok"
-                  ? "glow-ok"
-                  : item.dot === "burn"
-                  ? "glow-burn"
-                  : item.dot === "acid"
-                  ? "glow-acid"
-                  : item.dot === "magenta"
-                  ? "glow-magenta"
-                  : item.dot === "cyan"
-                  ? "glow-cyan"
-                  : "text-ink"
-              }
+        {tracks.map((item, i) => {
+          const glow =
+            item.dot === "ok"
+              ? "glow-ok"
+              : item.dot === "burn"
+              ? "glow-burn"
+              : item.dot === "acid"
+              ? "glow-acid"
+              : item.dot === "magenta"
+              ? "glow-magenta"
+              : item.dot === "cyan"
+              ? "glow-cyan"
+              : "text-ink";
+          const href = (item as { href?: string }).href;
+          const inner = (
+            <>
+              <Dot variant={item.dot as any} />
+              <span className="text-ink-mute">[{item.tag}]</span>
+              <span className={glow}>{item.msg}</span>
+            </>
+          );
+          return href ? (
+            <a
+              key={i}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-pixel-xs flex items-center gap-3 px-4 hover:opacity-80 transition-opacity pointer-events-auto"
             >
-              {item.msg}
+              {inner}
+            </a>
+          ) : (
+            <span key={i} className="text-pixel-xs flex items-center gap-3 px-4">
+              {inner}
             </span>
-          </span>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
