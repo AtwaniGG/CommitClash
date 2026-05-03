@@ -3,6 +3,7 @@
 import { PublicKey } from "@solana/web3.js";
 import { useLiveMetrics } from "@/lib/hooks";
 import { fmtCompact } from "@/lib/format";
+import { usePreviewMode } from "@/lib/previewMode";
 
 function shortAddr(a: string): string {
   if (!a || a.length < 12) return a;
@@ -31,9 +32,10 @@ function pkStr(v: any): string | null {
 }
 
 export function Marquee() {
-  const { events, loading, inQueue, matchesActive } = useLiveMetrics();
+  const { events, inQueue, matchesActive } = useLiveMetrics();
+  const previewMode = usePreviewMode();
 
-  const items = events.flatMap((e) => {
+  const items = previewMode ? [] : events.flatMap((e) => {
     try {
       if (e.kind === "Resolved") {
         const playerA = pkStr(pick(e.data, "playerA", "player_a"));
@@ -113,7 +115,9 @@ export function Marquee() {
           {
             dot: "idle",
             tag: "STATUS",
-            msg: `${inQueue} in queue · ${matchesActive} active matches · awaiting first event`,
+            msg: previewMode
+              ? "0 in queue · 0 active matches · awaiting mainnet launch"
+              : `${inQueue} in queue · ${matchesActive} active matches · awaiting first event`,
           },
         ];
 
