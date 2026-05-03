@@ -15,7 +15,7 @@ const NAV: { href: string; label: string }[] = [
 ];
 
 const PUMP_FUN_URL =
-  "https://pump.fun/coin/CYQ3wHfoc6WsFvf7HUoceagenw5Xfy9X824svazapump";
+  "https://pump.fun/coin/CHRxRqNLWQLzkA5jFGSvCLNJfNNYnH8t5LR2zdpKpump";
 
 import { usePreviewMode } from "@/lib/previewMode";
 
