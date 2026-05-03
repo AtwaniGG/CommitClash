@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges" width="512" height="512">
+  <!--
+    $RPS coin logo — pixel-art coin with rock / paper / scissors arranged
+    in a triangle, $RPS lettering above. Designed at 32x32 viewBox; every
+    rect = 1 pixel. Drop-in replacement for any coin-image use case.
+
+    Palette matches the CommitClash brand:
+      magenta #ff2bd6  acid yellow #fffb00  cyan #00f5d4  green #00ff88
+      grey #a0a4c0     dark #0a0e1a         shade #4a5379  hi #e0e0ff
+  -->
+
+  <!-- ───── Coin rim (outer dark) ───── -->
+  <!-- Top -->  <rect x="11" y="0" width="10" height="1" fill="#0a0e1a"/>
+  <!-- Mid 28 rows -->
+  <rect x="9"  y="1" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="21" y="1" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="7"  y="2" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="23" y="2" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="6"  y="3" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="25" y="3" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="5"  y="4" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="26" y="4" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="4"  y="5" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="27" y="5" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="3"  y="7" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="28" y="7" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="2"  y="9" width="1" height="14" fill="#0a0e1a"/>
+  <rect x="29" y="9" width="1" height="14" fill="#0a0e1a"/>
+  <rect x="3"  y="23" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="28" y="23" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="4"  y="25" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="27" y="25" width="1" height="2" fill="#0a0e1a"/>
+  <rect x="5"  y="27" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="26" y="27" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="6"  y="28" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="25" y="28" width="1" height="1" fill="#0a0e1a"/>
+  <rect x="7"  y="29" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="23" y="29" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="9"  y="30" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="21" y="30" width="2" height="1" fill="#0a0e1a"/>
+  <rect x="11" y="31" width="10" height="1" fill="#0a0e1a"/>
+
+  <!-- ───── Coin body (magenta rim) ───── -->
+  <rect x="11" y="1" width="10" height="1" fill="#ff2bd6"/>
+  <rect x="9"  y="2" width="14" height="1" fill="#ff2bd6"/>
+  <rect x="7"  y="3" width="18" height="1" fill="#ff2bd6"/>
+  <rect x="6"  y="4" width="20" height="1" fill="#ff2bd6"/>
+  <rect x="5"  y="5" width="22" height="2" fill="#ff2bd6"/>
+  <rect x="4"  y="7" width="24" height="2" fill="#ff2bd6"/>
+  <rect x="3"  y="9" width="26" height="14" fill="#ff2bd6"/>
+  <rect x="4"  y="23" width="24" height="2" fill="#ff2bd6"/>
+  <rect x="5"  y="25" width="22" height="2" fill="#ff2bd6"/>
+  <rect x="6"  y="27" width="20" height="1" fill="#ff2bd6"/>
+  <rect x="7"  y="28" width="18" height="1" fill="#ff2bd6"/>
+  <rect x="9"  y="29" width="14" height="1" fill="#ff2bd6"/>
+  <rect x="11" y="30" width="10" height="1" fill="#ff2bd6"/>
+
+  <!-- ───── Coin face (dark inner) ───── -->
+  <rect x="11" y="3" width="10" height="1" fill="#0a0e1a"/>
+  <rect x="9"  y="4" width="14" height="1" fill="#0a0e1a"/>
+  <rect x="7"  y="5" width="18" height="2" fill="#0a0e1a"/>
+  <rect x="6"  y="7" width="20" height="2" fill="#0a0e1a"/>
+  <rect x="5"  y="9" width="22" height="14" fill="#0a0e1a"/>
+  <rect x="6"  y="23" width="20" height="2" fill="#0a0e1a"/>
+  <rect x="7"  y="25" width="18" height="2" fill="#0a0e1a"/>
+  <rect x="9"  y="27" width="14" height="1" fill="#0a0e1a"/>
+  <rect x="11" y="28" width="10" height="1" fill="#0a0e1a"/>
+
+  <!-- ───── "$RPS" pixel text near top of face ───── -->
+  <!-- $ at x=10, R at x=14, P at x=18, S at x=22 — each 3 wide × 5 tall -->
+  <!-- $ -->
+  <rect x="10" y="6" width="3" height="1" fill="#00f5d4"/>
+  <rect x="10" y="7" width="1" height="1" fill="#00f5d4"/>
+  <rect x="10" y="8" width="3" height="1" fill="#00f5d4"/>
+  <rect x="12" y="9" width="1" height="1" fill="#00f5d4"/>
+  <rect x="10" y="10" width="3" height="1" fill="#00f5d4"/>
+  <rect x="11" y="5" width="1" height="6" fill="#00f5d4"/>
+  <!-- R -->
+  <rect x="14" y="6" width="3" height="1" fill="#00f5d4"/>
+  <rect x="14" y="7" width="1" height="4" fill="#00f5d4"/>
+  <rect x="16" y="7" width="1" height="1" fill="#00f5d4"/>
+  <rect x="14" y="8" width="3" height="1" fill="#00f5d4"/>
+  <rect x="15" y="9" width="1" height="2" fill="#00f5d4"/>
+  <rect x="16" y="10" width="1" height="1" fill="#00f5d4"/>
+  <!-- P -->
+  <rect x="18" y="6" width="3" height="1" fill="#00f5d4"/>
+  <rect x="18" y="7" width="1" height="4" fill="#00f5d4"/>
+  <rect x="20" y="7" width="1" height="1" fill="#00f5d4"/>
+  <rect x="18" y="8" width="3" height="1" fill="#00f5d4"/>
+  <!-- S -->
+  <rect x="22" y="6" width="3" height="1" fill="#00f5d4"/>
+  <rect x="22" y="7" width="1" height="1" fill="#00f5d4"/>
+  <rect x="22" y="8" width="3" height="1" fill="#00f5d4"/>
+  <rect x="24" y="9" width="1" height="1" fill="#00f5d4"/>
+  <rect x="22" y="10" width="3" height="1" fill="#00f5d4"/>
+
+  <!-- ───── ROCK sprite (top-center, 6×4) at x=13, y=13 ───── -->
+  <rect x="14" y="13" width="4" height="1" fill="#e0e0ff"/>
+  <rect x="13" y="14" width="6" height="1" fill="#a0a4c0"/>
+  <rect x="13" y="15" width="2" height="1" fill="#a0a4c0"/>
+  <rect x="15" y="15" width="4" height="1" fill="#4a5379"/>
+  <rect x="14" y="16" width="4" height="1" fill="#4a5379"/>
+
+  <!-- ───── PAPER sprite (bottom-left, 5×6) at x=8, y=18 ───── -->
+  <rect x="8"  y="18" width="6" height="1" fill="#0a0e1a"/>
+  <rect x="8"  y="19" width="1" height="6" fill="#0a0e1a"/>
+  <rect x="13" y="19" width="1" height="6" fill="#0a0e1a"/>
+  <rect x="9"  y="19" width="4" height="6" fill="#fffb00"/>
+  <rect x="10" y="20" width="2" height="1" fill="#a8a500"/>
+  <rect x="10" y="22" width="2" height="1" fill="#a8a500"/>
+  <rect x="10" y="24" width="2" height="1" fill="#a8a500"/>
+  <rect x="8"  y="25" width="6" height="1" fill="#0a0e1a"/>
+
+  <!-- ───── SCISSORS sprite (bottom-right, X shape, 6×6) at x=18, y=18 ───── -->
+  <!-- diagonal \ -->
+  <rect x="18" y="18" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="19" y="19" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="20" y="20" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="21" y="21" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="22" y="22" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="23" y="23" width="1" height="1" fill="#ff2bd6"/>
+  <!-- diagonal / -->
+  <rect x="23" y="18" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="22" y="19" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="21" y="20" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="20" y="21" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="19" y="22" width="1" height="1" fill="#ff2bd6"/>
+  <rect x="18" y="23" width="1" height="1" fill="#ff2bd6"/>
+  <!-- centre highlight -->
+  <rect x="20" y="20" width="2" height="2" fill="#a01088"/>
+  <rect x="20" y="20" width="1" height="1" fill="#ffe0fb"/>
+</svg>

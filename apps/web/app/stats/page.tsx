@@ -7,6 +7,7 @@ import { PixelFrame } from "@/components/ui/PixelFrame";
 import { fmtCompact } from "@/lib/format";
 import { useGlobalStats, useLiveMetrics } from "@/lib/hooks";
 import { PROGRAM_ID, getProgram, playerStatsPda } from "@/lib/anchor";
+import { usePreviewMode } from "@/lib/previewMode";
 
 const TOKEN_DECIMALS = 6;
 const SUPPLY_INITIAL = 1_000_000_000;
@@ -31,6 +32,7 @@ export default function StatsPage() {
   const [leaderboard, setLeaderboard] = useState<PlayerRow[]>([]);
   const [loadingLb, setLoadingLb] = useState(true);
   const { connection } = useConnection();
+  const previewMode = usePreviewMode();
 
   // Fetch all PlayerStats accounts and sort
   useEffect(() => {
@@ -69,12 +71,31 @@ export default function StatsPage() {
     };
   }, [connection]);
 
-  const supplyTokens = stats ? Number(stats.supply) / 10 ** stats.decimals : 0;
-  const burnedTokens = stats ? Number(stats.totalBurned) / 10 ** stats.decimals : 0;
-  const treasuryTokens = stats ? Number(stats.treasuryBal) / 10 ** stats.decimals : 0;
-  const volumeTokens = stats ? Number(stats.totalVolume) / 10 ** stats.decimals : 0;
+  // In preview mode (pre-launch) hard-zero everything so devnet activity
+  // doesn't bleed into the marketing surface. The /play pages still work
+  // for admins via ?dev=1 unlock.
+  const supplyTokens = previewMode
+    ? SUPPLY_INITIAL
+    : stats ? Number(stats.supply) / 10 ** stats.decimals : 0;
+  const burnedTokens = previewMode
+    ? 0
+    : stats ? Number(stats.totalBurned) / 10 ** stats.decimals : 0;
+  const treasuryTokens = previewMode
+    ? 0
+    : stats ? Number(stats.treasuryBal) / 10 ** stats.decimals : 0;
+  const volumeTokens = previewMode
+    ? 0
+    : stats ? Number(stats.totalVolume) / 10 ** stats.decimals : 0;
+  const roundsPlayed = previewMode
+    ? 0
+    : stats ? Number(stats.roundsPlayed) : 0;
   const burnPct = (burnedTokens / SUPPLY_INITIAL) * 100;
   const supplyPct = (supplyTokens / SUPPLY_INITIAL) * 100;
+  // In preview, hide the leaderboard + recent events sections — they'd
+  // either show nothing or leak devnet data.
+  const lbDisplay = previewMode ? [] : leaderboard;
+  const lbLoading = previewMode ? false : loadingLb;
+  const eventsDisplay = previewMode ? [] : events;
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 space-y-8">
@@ -82,8 +103,14 @@ export default function StatsPage() {
         <div className="text-pixel-xs text-ink-mute">DASHBOARD.SOL</div>
         <h1 className="text-pixel-xl glow-cyan mt-2">{">"} GLOBAL_STATS</h1>
         <p className="font-body text-xl text-ink-dim mt-2">
-          Live aggregates from <span className="font-mono">GlobalStats</span> PDA on Solana devnet.
-          {!stats && " Loading…"}
+          {previewMode
+            ? "Stats reset to launch state. Real numbers will populate the moment $RPS goes live on Solana mainnet."
+            : (
+                <>
+                  Live aggregates from <span className="font-mono">GlobalStats</span> PDA on Solana mainnet.
+                  {!stats && " Loading…"}
+                </>
+              )}
         </p>
       </div>
 
@@ -91,23 +118,23 @@ export default function StatsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi
           label="ROUNDS PLAYED"
-          value={stats ? Number(stats.roundsPlayed).toLocaleString() : "—"}
+          value={previewMode || stats ? roundsPlayed.toLocaleString() : "—"}
         />
         <Kpi
           label="$RPS BURNED FOREVER"
-          value={stats ? fmtCompact(burnedTokens) : "—"}
-          sub={stats ? `${burnPct.toFixed(4)}% OF SUPPLY` : "—"}
+          value={previewMode || stats ? fmtCompact(burnedTokens) : "—"}
+          sub={previewMode || stats ? `${burnPct.toFixed(4)}% OF SUPPLY` : "—"}
           tone="burn"
         />
         <Kpi
           label="TREASURY"
-          value={stats ? fmtCompact(treasuryTokens) : "—"}
+          value={previewMode || stats ? fmtCompact(treasuryTokens) : "—"}
           sub="$RPS"
           tone="acid"
         />
         <Kpi
           label="LIFETIME VOLUME"
-          value={stats ? fmtCompact(volumeTokens) : "—"}
+          value={previewMode || stats ? fmtCompact(volumeTokens) : "—"}
           sub="$RPS"
           tone="cyan"
         />
@@ -120,7 +147,7 @@ export default function StatsPage() {
             <div>
               <div className="text-pixel-xs text-ink-mute">CURRENT SUPPLY</div>
               <div className="text-pixel-lg glow-cyan mt-1">
-                {stats ? fmtCompact(supplyTokens) : "—"} / 1B
+                {previewMode || stats ? fmtCompact(supplyTokens) : "—"} / 1B
               </div>
             </div>
             <div className="text-right">
@@ -141,11 +168,11 @@ export default function StatsPage() {
       {/* Leaderboard + Recent */}
       <div className="grid lg:grid-cols-[1fr_1fr] gap-6">
         <PixelFrame title="LEADERBOARD // PLAYER_STATS" tone="acid">
-          {loadingLb ? (
+          {lbLoading ? (
             <div className="text-pixel-xs text-ink-mute py-6 text-center">
               SCANNING ACCOUNTS…
             </div>
-          ) : leaderboard.length === 0 ? (
+          ) : lbDisplay.length === 0 ? (
             <div className="text-pixel-xs text-ink-mute py-6 text-center">
               NO GAMES PLAYED YET — BE THE FIRST.
             </div>
@@ -161,7 +188,7 @@ export default function StatsPage() {
                 </tr>
               </thead>
               <tbody>
-                {leaderboard.slice(0, 20).map((p, i) => (
+                {lbDisplay.slice(0, 20).map((p, i) => (
                   <tr
                     key={p.player}
                     className="border-b border-edge/30 last:border-0"
@@ -192,13 +219,13 @@ export default function StatsPage() {
         </PixelFrame>
 
         <PixelFrame title="RECENT_EVENTS // PROGRAM_LOG" tone="magenta">
-          {events.length === 0 ? (
+          {eventsDisplay.length === 0 ? (
             <div className="text-pixel-xs text-ink-mute py-6 text-center">
               NO EVENTS YET. CHAIN IDLE.
             </div>
           ) : (
             <ul className="space-y-2 font-mono text-sm">
-              {events.slice(0, 12).map((e, i) => (
+              {eventsDisplay.slice(0, 12).map((e, i) => (
                 <li
                   key={i}
                   className="flex items-center justify-between gap-2 py-1 border-b border-edge/30 last:border-0"
